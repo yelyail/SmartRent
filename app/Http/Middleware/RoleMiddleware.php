@@ -23,10 +23,7 @@ class RoleMiddleware
         }
 
         $user = Auth::user();
-
-        // Check if user has any of the required roles
         foreach ($roles as $role) {
-            // Since role is cast to enum, we need to compare values properly
             if ($user->role instanceof UserRole) {
                 // Compare enum value
                 if ($user->role->value === $role) {

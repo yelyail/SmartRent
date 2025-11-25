@@ -1,14 +1,17 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\{
     LandingController,
     LandlordController,
     TenantsController,
     DashboardController,
     AdminController,
-    StaffController
+    StaffController,
+    UserManagementController,
 };
+use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Auth\AuthController;
 
 Route::get('/', [LandingController::class, 'index'])->name('landing.index');
@@ -34,8 +37,77 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         Route::get('/user-management', [AdminController::class, 'userManagement'])->name('admins.userManagement');
         Route::get('/properties', [AdminController::class, 'properties'])->name('admins.properties');
         Route::get('/payment', [AdminController::class, 'payment'])->name('admins.payment');
+
+        // AJAX routes for user management
+        Route::get('/users/stats', [AdminController::class, 'getUserStats'])->name('admin.users.stats');
+        Route::get('/kyc/pending', [AdminController::class, 'getPendingKyc'])->name('admin.kyc.pending');
+
+        // User Management Routes
+        Route::prefix('users')->name('admin.users.')->group(function () {
+            Route::get('/', [UserManagementController::class, 'getUsers'])->name('getUsers');
+            Route::post('/', [UserManagementController::class, 'store'])->name('store');
+            Route::get('/{user}', [UserManagementController::class, 'getUser'])->name('getUser');
+            Route::put('/{user}', [UserManagementController::class, 'update'])->name('update');
+            Route::patch('/{user}/status', [UserManagementController::class, 'updateStatus'])->name('updateStatus');
+            Route::patch('/{user}/archive', [UserManagementController::class, 'archive'])->name('archive');
+            Route::get('/{user}/kyc', [UserManagementController::class, 'getKycDetails'])->name('getKycDocuments');
+        });
+
+        // KYC Routes
+        Route::prefix('kyc')->name('admin.kyc.')->group(function () {
+            Route::get('/pending', [UserManagementController::class, 'getPendingKyc'])->name('pending');
+            Route::post('/{kycDocument}/approve', [UserManagementController::class, 'approveKyc'])->name('approve');
+            Route::post('/{kycDocument}/reject', [UserManagementController::class, 'rejectKyc'])->name('reject');
+        });
+
+       Route::get('/admin/pdf/{filename}', function($filename) {
+            $decodedFilename = urldecode($filename);
+            
+            // Check if file exists
+            $path = public_path("storage/images/uploadDocs/{$decodedFilename}");
+            
+            if (!file_exists($path)) {
+                // Get available files to suggest alternatives
+                $directory = public_path('storage/images/uploadDocs');
+                $availableFiles = [];
+                if (is_dir($directory)) {
+                    $files = scandir($directory);
+                    $availableFiles = array_values(array_filter($files, function($file) {
+                        return $file !== '.' && $file !== '..' && pathinfo($file, PATHINFO_EXTENSION) === 'pdf';
+                    }));
+                }
+                
+                // Check if this might be a different file with similar name
+                $suggestedFiles = [];
+                foreach ($availableFiles as $file) {
+                    if (strpos($file, 'kyc_doc') !== false) {
+                        $suggestedFiles[] = $file;
+                    }
+                }
+                
+                return response()->json([
+                    'error' => 'File not found',
+                    'requested_file' => $decodedFilename,
+                    'available_files' => $availableFiles,
+                    'suggested_kyc_files' => $suggestedFiles,
+                ], 404);
+            }
+            
+            // Check if file is PDF
+            $fileExtension = pathinfo($path, PATHINFO_EXTENSION);
+            if (strtolower($fileExtension) !== 'pdf') {
+                abort(403, 'Access denied for this file type.');
+            }
+            
+            // Return the PDF file
+            return response()->file($path, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline',
+            ]);
+        })->name('files.pdf')->middleware(['auth', 'role:admin']);
     });
 });
+
 
 //for the landlord
 Route::middleware(['auth', 'role:landlord'])->group(function () {
@@ -65,3 +137,23 @@ Route::middleware(['auth', 'role:staff'])->group(function () {
     Route::get('/properties', [StaffController::class, 'properties'])->name('staff.properties');
     Route::get('/payment', [StaffController::class, 'payment'])->name('staff.payment');
 });
+
+
+
+Route::get('/debug-database-kyc', function() {
+    $kycDocuments = \App\Models\KycDocument::all();
+    
+    return response()->json(
+        $kycDocuments->map(function($doc) {
+            return [
+                'kyc_id' => $doc->kyc_id,
+                'user_id' => $doc->user_id,
+                'doc_name' => $doc->doc_name,
+                'doc_path' => $doc->doc_path,
+                'proof_of_income' => $doc->proof_of_income,
+                'file_exists' => file_exists(public_path("storage/{$doc->doc_path}")),
+                'income_file_exists' => $doc->proof_of_income ? file_exists(public_path("storage/{$doc->proof_of_income}")) : false,
+            ];
+        })
+    );
+})->middleware(['auth', 'role:admin']);
