@@ -110,16 +110,18 @@ class AdminController extends Controller
     {
         $stats = [
             'total_tenants' => User::where('role', UserRole::TENANTS)->count(),
-            'active_tenants' => User::where('status', 'active')->where('status', 'active')->count(),
-            'total_landlords' => User::where('role', UserRole::LANDLORD)->count(),
+            'active_tenants' => User::where('role', UserRole::TENANTS)->where('status', 'active')->count(),
             'active_landlords' => User::where('role', UserRole::LANDLORD)->where('status', 'active')->count(),
+            'active_staff' => User::where('role', UserRole::STAFF)->where('status', 'active')->count(),
+            'active_admins' => User::where('role', UserRole::ADMIN)->where('status', 'active')->count(),
+            'active_users' => User::where('status', 'active')->count(), // Total active across all roles
+            'total_landlords' => User::where('role', UserRole::LANDLORD)->count(),
             'pending_kyc' => KycDocument::where('status', 'pending')->count(),
             'banned_users' => User::where('status', 'banned')->count(),
         ];
 
         return response()->json($stats);
     }
-
     /**
      * Get pending KYC documents for AJAX requests
      */

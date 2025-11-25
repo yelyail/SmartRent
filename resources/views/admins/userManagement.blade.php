@@ -33,20 +33,19 @@
             </div>
         </div>
 
-        <!-- Active -->
+        <!-- Active Users (All Roles) -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div class="flex items-center justify-between">
                 <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                     <i class="fas fa-check-circle text-green-600 text-lg"></i>
                 </div>
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">Active</p>
-                    <p id="activeTenants" class="text-3xl font-bold text-gray-900">{{ $stats['active_tenants'] ?? 0 }}</p>
+                    <p class="text-sm text-gray-600 mb-1">Active Users</p>
+                    <p id="activeUsers" class="text-3xl font-bold text-gray-900">{{ $stats['active_users'] ?? 0 }}</p>
                 </div>
             </div>
         </div>
 
-        <!-- Late Payments -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div class="flex items-center justify-between">
                 <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
@@ -58,17 +57,16 @@
                 </div>
             </div>
         </div>
-
-        <!-- Expiring Soon -->
+        <!-- Pending KYC -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div class="flex items-center justify-between">
-                <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-calendar-times text-orange-600 text-lg"></i>
+                <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-file-alt text-yellow-600 text-lg"></i>
                 </div>
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">Expiring Soon</p>
-                    <p class="text-3xl font-bold text-gray-900">2</p>
-                </div>                           
+                    <p class="text-sm text-gray-600 mb-1">Pending KYC</p>
+                    <p id="pendingKyc" class="text-3xl font-bold text-gray-900">{{ $stats['pending_kyc'] ?? 0 }}</p>
+                </div>
             </div>
         </div>
     </div>
@@ -257,49 +255,144 @@
         
         <form id="addUserForm" class="p-6">
             @csrf
-            <div class="grid grid-cols-1 gap-4">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
-                        <input type="text" name="first_name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Last Name *</label>
-                        <input type="text" name="last_name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                    </div>
-                </div>
+            <div class="grid grid-cols-1 gap-6">
+                <!-- Personal Information Section -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-                    <input type="email" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Phone *</label>
-                    <input type="text" name="phone_num" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Role *</label>
-                    <select name="role" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <option value="">Select Role</option>
-                        <option value="tenants">Tenant</option>
-                        <option value="landlord">Landlord</option>
-                        <option value="staff">Staff</option>
-                        <option value="admin">Admin</option>
-                    </select>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Password *</label>
-                        <input type="password" name="password" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                        <i class="fas fa-user-circle text-blue-600"></i>
+                        <span>Personal Information</span>
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                First Name <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" name="first_name" required 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                   placeholder="Enter first name">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Middle Name</label>
+                            <input type="text" name="middle_name" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                   placeholder="Enter middle name">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Last Name <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" name="last_name" required 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                   placeholder="Enter last name">
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Confirm Password *</label>
-                        <input type="password" name="password_confirmation" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <!-- Contact Information Section -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                        <i class="fas fa-address-book text-green-600"></i>
+                        <span>Contact Information</span>
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Email Address <span class="text-red-500">*</span>
+                            </label>
+                            <input type="email" name="email" required 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                   placeholder="user@example.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Phone Number <span class="text-red-500">*</span>
+                            </label>
+                            <input type="tel" name="phone_num" required 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                   placeholder="+1 (555) 000-0000">
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Address <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" name="address" required 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                               placeholder="Enter complete address">
+                    </div>
+                </div>
+
+                <!-- Account Information Section -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                        <i class="fas fa-user-cog text-purple-600"></i>
+                        <span>Account Information</span>
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Role <span class="text-red-500">*</span>
+                            </label>
+                            <select name="role" required 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
+                                <option value="">Select User Role</option>
+                                <option value="tenants">Tenant</option>
+                                <option value="landlords">Landlord</option>
+                                <option value="staff">Staff</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Password <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <input type="password" name="password" id="password" required 
+                                       class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                       placeholder="Enter password"
+                                       minlength="12">
+                                <button type="button" 
+                                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                                        onclick="togglePasswordVisibility('password', 'passwordToggle')">
+                                    <i id="passwordToggle" class="fas fa-eye-slash"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">Minimum 12 characters</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Confirm Password <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <input type="password" name="password_confirmation" id="password_confirmation" required 
+                                       class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                       placeholder="Confirm password"
+                                       minlength="12">
+                                <button type="button" 
+                                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                                        onclick="togglePasswordVisibility('password_confirmation', 'confirmPasswordToggle')">
+                                    <i id="confirmPasswordToggle" class="fas fa-eye-slash"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">Re-enter your password</p>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
-                <button type="button" id="cancelAddUser" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Create User</button>
+
+            <!-- Form Actions -->
+            <div class="flex justify-end space-x-4 mt-8 pt-6 border-t border-gray-200">
+                <button type="button" id="cancelAddUser" 
+                        class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+                    Cancel
+                </button>
+                <button type="submit" 
+                        class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2">
+                    <i class="fas fa-user-plus"></i>
+                    <span>Create User</span>
+                </button>
             </div>
         </form>
     </div>
@@ -382,6 +475,21 @@
 
 @push('scripts')
 <script>
+    // Password visibility toggle function
+    function togglePasswordVisibility(passwordFieldId, toggleIconId) {
+        const passwordField = document.getElementById(passwordFieldId);
+        const toggleIcon = document.getElementById(toggleIconId);
+        
+        if (passwordField.type === 'password') {
+            passwordField.type = 'text';
+            toggleIcon.classList.remove('fa-eye-slash');
+            toggleIcon.classList.add('fa-eye');
+        } else {
+            passwordField.type = 'password';
+            toggleIcon.classList.remove('fa-eye');
+            toggleIcon.classList.add('fa-eye-slash');
+        }
+    }
     // Modal elements
     const kycModal = document.getElementById('kycModal');
     const addUserModal = document.getElementById('addUserModal');
@@ -398,6 +506,66 @@
     document.getElementById('addUserBtn').addEventListener('click', () => {
         addUserModal.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
+    });
+    document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        
+        // Show loading state
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Creating User...</span>';
+        submitBtn.disabled = true;
+        
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        
+        try {
+            const response = await fetch('/admin/users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+            
+            if (result.success) {
+                // Show success message
+                alert('✅ ' + result.message);
+                closeAddUserModal();
+                
+                // Use setTimeout to ensure alert is visible before any potential page changes
+                setTimeout(() => {
+                    // Check if loadUsers is an AJAX function or if it causes page reload
+                    if (typeof loadUsers === 'function') {
+                        loadUsers(); // Refresh the user table via AJAX
+                    } else {
+                        // If loadUsers causes page reload, consider removing it
+                        window.location.reload(); // Or use a different approach
+                    }
+                }, 100);
+                
+            } else {
+                // Show validation errors or error message
+                if (result.errors) {
+                    const errorMessages = Object.values(result.errors).flat().join('\n');
+                    alert('❌ ' + errorMessages);
+                } else {
+                    alert('❌ ' + result.message);
+                }
+            }
+        } catch (error) {
+            console.error('Error creating user:', error);
+            alert('❌ Error creating user. Please try again.');
+        } finally {
+            // Reset button state
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
     });
 
     // Close modals
@@ -470,17 +638,19 @@
         });
     });
 
-    // Load users function for AJAX filtering
     async function loadUsers() {
         try {
-            const search = searchInput.value;
-            const role = roleFilter.value;
-            const status = statusFilter.value;
+            const search = document.getElementById('searchInput').value;
+            const role = document.getElementById('roleFilter').value;
+            const status = document.getElementById('statusFilter').value;
             
             const url = `/admin/users?search=${encodeURIComponent(search)}&role=${role}&status=${status}`;
             const response = await fetch(url);
-            const users = await response.json();
-            displayUsers(users.data);
+            const result = await response.json();
+            
+            // This should update the table without page reload
+            displayUsers(result.data);
+            
         } catch (error) {
             console.error('Error loading users:', error);
         }

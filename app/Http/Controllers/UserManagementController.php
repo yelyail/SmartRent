@@ -111,13 +111,14 @@ class UserManagementController extends Controller
 
             $user = User::create([
                 'first_name' => $validated['first_name'],
+                'middle_name' => $validated['middle_name'] ?? null,
+                'address' => $validated['address'],
                 'last_name' => $validated['last_name'],
                 'email' => $validated['email'],
                 'phone_num' => $validated['phone_num'],
                 'role' => $validated['role'],
                 'password' => Hash::make($validated['password']),
                 'status' => 'active',
-                'email_verified_at' => now(),
             ]);
 
             DB::commit();
@@ -348,7 +349,7 @@ class UserManagementController extends Controller
     {
         $stats = [
             'total_tenants' => User::where('role', UserRole::TENANTS)->count(),
-            'active_tenants' => User::where('role', UserRole::TENANTS)->where('status', 'active')->count(),
+            'active_tenants' => User::where('status', 'pending')->count(),
             'total_landlords' => User::where('role', UserRole::LANDLORD)->count(),
             'active_landlords' => User::where('role', UserRole::LANDLORD)->where('status', 'active')->count(),
             'pending_kyc' => KycDocument::where('status', 'pending')->count(),
