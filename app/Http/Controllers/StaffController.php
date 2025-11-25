@@ -4,38 +4,38 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 
-class AdminController extends Controller
+class StaffController extends Controller
 {
     public function index()
     {
-        return view('admins.dashboard');
+        return view('staff.dashboard');
     }
     public function bill()
     {
-        return view('admins.bill');
+        return view('staff.bill');
     }
     public function analytics()
     {
-        return view('admins.analytics');
+        return view('staff.analytics');
     }
     public function maintenance()
     {
-        return view('admins.maintenance');
+        return view('staff.maintenance');
     }
     public function propAssets()
     {
-        return view('admins.propAssets');
+        return view('staff.propAssets');
     }
     public function userManagement()
     {
-        return view('admins.userManagement');
+        return view('staff.userManagement');
     }
     public function properties()
     {
-        return view('admins.properties');
+        return view('staff.properties');
     }
     public function payment()
     {
-        return view('admins.payment');
+        return view('staff.payment');
     }
 }

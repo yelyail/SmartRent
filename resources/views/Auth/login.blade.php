@@ -9,29 +9,35 @@
     @vite('resources/css/app.css')
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 
+    <!-- SweetAlert2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.26.3/dist/sweetalert2.all.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.26.3/dist/sweetalert2.min.css" rel="stylesheet">
+
 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body class=" font-sans bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-md">
-        <!-- Logo and Header -->
-        <div class="text-center mb-10">
-            <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl mb-5 shadow-lg">
-                <i class="fas fa-home text-white text-3xl"></i>
-            </div>
-            <h1 class="text-4xl font-bold text-gray-900 mb-2 tracking-tight">SmartRent</h1>
-            <p class="text-gray-600 font-medium">Intelligent Property Management</p>
-        </div>
+        
 
         <!-- Login Form -->
         <div class="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 transform transition-all duration-300 hover:shadow-2xl">
-            <div class="text-center mb-8">
-                <h2 class="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h2>
-                <p class="text-gray-600">Sign in to access your credentials</p>
+            <div class="flex items-center justify-between mb-8">
+                <!-- Logo on the left -->
+                <div class="flex items-center">
+                    <div class="inline-flex items-center justify-center w-24 h-24 rounded-xl shadow-lg">
+                        <img src="{{ asset('images/logo.png') }}" alt="SmartRent Logo" class="w-24 h-24 rounded-xl">
+                    </div>
+                </div>
+                
+                <!-- Welcome text on the right -->
+                <div class="text-right">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h2>
+                    <p class="text-gray-600">Sign in to access your credentials</p>
+                </div>
             </div>
-
-            <form class="space-y-6">
-                <!-- Email Field -->
+            <form class="space-y-6" method="POST" action="{{ route('login.store') }}" >
+                @csrf
                 <div>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -104,7 +110,7 @@
             <div class="mt-8 pt-6 border-t border-gray-200">
                 <p class="text-center text-sm text-gray-600">
                     Don't have an account?  
-                    <a href="{{ route('Auth.register') }}" class="text-blue-600 hover:text-blue-500 font-medium transition-colors ml-1">
+                    <a href="{{ route('register') }}" class="text-blue-600 hover:text-blue-500 font-medium transition-colors ml-1">
                         Sign up
                     </a>
                 </p>
@@ -118,8 +124,67 @@
             </p>
         </div>
     </div>
+    <!-- SweetAlert2 Messages -->
+    @if(session('success'))
+        <div data-success="{{ session('success') }}"></div>
+    @endif
+
+    @if(session('error'))
+        <div data-error="{{ session('error') }}"></div>
+    @endif
+
+    @if($errors->any())
+        <div data-error="{{ implode(' ', $errors->all()) }}"></div>
+    @endif
 
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check for success message
+            const successMessage = document.querySelector('[data-success]');
+            if (successMessage) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: successMessage.getAttribute('data-success'),
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#3B82F6',
+                });
+            }
+
+            // Check for error message
+            const errorMessage = document.querySelector('[data-error]');
+            if (errorMessage) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Login Failed',
+                    text: errorMessage.getAttribute('data-error'),
+                    confirmButtonText: 'Try Again',
+                    confirmButtonColor: '#EF4444',
+                });
+            }
+
+            // Check for CSRF token issues
+            const forms = document.querySelectorAll('form');
+            forms.forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    const csrfToken = form.querySelector('input[name="_token"]');
+                    if (!csrfToken || !csrfToken.value) {
+                        e.preventDefault();
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Page Expired',
+                            text: 'Please refresh the page and try again.',
+                            confirmButtonText: 'Refresh',
+                            confirmButtonColor: '#EF4444',
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                window.location.reload();
+                            }
+                        });
+                    }
+                });
+            });
+        });
         function togglePassword() {
             const passwordInput = document.getElementById('password');
             const toggleIcon = document.getElementById('password-toggle');
@@ -136,9 +201,7 @@
         }
 
         // Form submission handler
-        document.querySelector('form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
+        document.querySelector('form').addEventListener('submit', function(e) {            
             // Simple validation
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
@@ -152,15 +215,11 @@
                 button.disabled = true;
                 
                 setTimeout(() => {
-                    // Redirect to dashboard (you can change this URL)
-                    alert('Login successful! Redirecting to dashboard...');
-                    // window.location.href = 'dashboard.html';
-                    
                     // Reset button after 3 seconds
                     setTimeout(() => {
                         button.innerHTML = originalText;
                         button.disabled = false;
-                    }, 3000);
+                    }, 1000);
                 }, 2000);
             }
         });

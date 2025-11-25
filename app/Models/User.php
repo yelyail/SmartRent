@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Enums\UserRole;
 
 class User extends Authenticatable
 {
@@ -17,10 +18,18 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
-    protected $fillable = [
-        'name',
+    protected $primaryKey = 'user_id'; // Add this line
+
+     protected $fillable = [
+        'first_name',
+        'middle_name',
+        'last_name',
+        'address',
+        'phone_num',
         'email',
+        'role',
         'password',
+        'status',
     ];
 
     /**
@@ -43,6 +52,45 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'role'=> UserRole::class,
         ];
+    }
+
+    // Relationship with KYC documents
+    public function kycDocuments()
+    {
+        return $this->hasMany(KycDocument::class, 'user_id', 'user_id');
+    }
+
+    // Get latest KYC document
+    public function latestKycDocument()
+    {
+        return $this->hasOne(KycDocument::class, 'user_id', 'user_id')->latestOfMany();
+    }
+
+    public function getFullNameAttribute()
+    {
+        return trim("{$this->first_name} {$this->middle_name} {$this->last_name}");
+    }
+
+    public function isVerified()
+    {
+        return $this->status === 'verified' && $this->hasVerifiedEmail();
+    }
+
+    public function hasApprovedKyc()
+    {
+        return $this->kycDocuments()->where('status', 'approved')->exists();
+    }
+
+    public function pendingKycDocuments()
+    {
+        return $this->kycDocuments()->where('status', 'pending');
+    }
+    public function getKycStatusAttribute()
+    {
+        // If kyc_status is stored in users table
+        return $this->attributes['kyc_status'] ?? 'pending';
+        
     }
 }

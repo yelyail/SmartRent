@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 
 class TenantsController extends Controller
 {
-    public function dashboard()
+    public function index()
     {
         return view('tenants.dashboard');
     }
