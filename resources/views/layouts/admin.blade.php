@@ -155,22 +155,23 @@
                         <button class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors duration-200 rounded-lg hover:bg-blue-500">
                             <i class="fas fa-ellipsis-v text-sm"></i>
                         </button>
-                        <div class="absolute bottom-full left-0 mb-2 w-48 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-                            <div class="py-1">
-                                <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-400 hover:bg-gray-600 hover:text-white">
-                                    <i class="fas fa-user-edit mr-3 text-xs"></i>
-                                    Edit Profile
-                                </a>
-                                <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-400 hover:bg-gray-600 hover:text-white">
-                                    <i class="fas fa-cog mr-3 text-xs"></i>
-                                    Settings
-                                </a>
-                                <div class="border-t border-gray-600 my-1"></div>
-                                <a href="{{ route('logout') }}" class="flex items-center px-4 py-2 text-sm text-red-400 hover:bg-gray-600 hover:text-red-300">
+                        <div class="py-1">
+                            <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-400 hover:bg-gray-600 hover:text-white">
+                                <i class="fas fa-user-edit mr-3 text-xs"></i>
+                                Edit Profile
+                            </a>
+                            <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-400 hover:bg-gray-600 hover:text-white">
+                                <i class="fas fa-cog mr-3 text-xs"></i>
+                                Settings
+                            </a>
+                            <div class="border-t border-gray-600 my-1"></div>
+                            <form method="POST" action="{{ route('logout') }}" class="inline">
+                                @csrf
+                                <button type="submit" class="flex items-center w-full px-4 py-2 text-sm text-red-400 hover:bg-gray-600 hover:text-red-300">
                                     <i class="fas fa-sign-out-alt mr-3 text-xs"></i>
                                     Logout
-                                </a>
-                            </div>
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
