@@ -112,11 +112,15 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
 //for the landlord
 Route::middleware(['auth', 'role:landlord'])->prefix('landlord')->name('landlords.')->group(function () {
+    // Dashboard & Main Pages
     Route::get('/dashboard', [LandlordController::class, 'index'])->name('dashboard');
     Route::get('/payment', [LandlordController::class, 'payment'])->name('payment');
     Route::get('/prop-assets', [LandlordController::class, 'propAssets'])->name('propAssets');
     Route::get('/analytics', [LandlordController::class, 'analytics'])->name('analytics');
     Route::get('/maintenance', [LandlordController::class, 'maintenance'])->name('maintenance');
+    Route::get('/tenants', [LandlordController::class, 'tenants'])->name('tenants');
+    Route::get('/bills', [LandlordController::class, 'bills'])->name('bills');
+    Route::get('/maintenance-requests', [LandlordController::class, 'maintenanceRequests'])->name('maintenanceRequests');
     
     // Properties routes
     Route::get('/properties', [LandlordController::class, 'properties'])->name('properties');
@@ -125,25 +129,23 @@ Route::middleware(['auth', 'role:landlord'])->prefix('landlord')->name('landlord
     Route::get('/properties/{id}/edit', [Properties::class, 'edit'])->name('properties.edit');
     Route::put('/properties/{id}', [Properties::class, 'update'])->name('properties.update');
     
-    // Property Units routes - ADD THESE
-    Route::post('/properties/{propertyId}/units', [Properties::class, 'storeUnit'])->name('properties.units.store');
-    Route::get('/properties/{propertyId}/units', [Properties::class, 'getUnits'])->name('properties.units.index');
-    Route::get('/units/{unitId}/edit', [Properties::class, 'editUnit'])->name('units.edit'); // Add this
-    Route::put('/units/{unitId}', [Properties::class, 'updateUnit'])->name('units.update'); // Add this
-    Route::put('/units/{unitId}/archive', [Properties::class, 'archive'])->name('units.archive');
+    // Property Units routes
+    Route::post('/properties/{id}/units', [Properties::class, 'storeUnit'])->name('properties.units.store');
+    Route::get('/properties/{id}/units', [Properties::class, 'getUnits'])->name('properties.units.index');
+    Route::get('/units/{id}/edit', [Properties::class, 'editUnit'])->name('units.edit');
+    Route::put('/units/{id}', [Properties::class, 'updateUnit'])->name('units.update');
+    Route::put('/units/{id}/archive', [Properties::class, 'archiveUnit'])->name('units.archive');
     
     // Smart Devices routes
-    Route::post('/properties/{propertyId}/devices', [Properties::class, 'storeDevice'])->name('properties.devices.store');
-    Route::get('/properties/{propertyId}/devices', [Properties::class, 'getSmartDevices'])->name('properties.devices.index');
-    Route::get('/devices/{deviceId}/edit', [Properties::class, 'editDevice'])->name('devices.edit');
-    Route::put('/devices/{deviceId}', [Properties::class, 'updateDevice'])->name('devices.update');
-    Route::delete('/devices/{deviceId}', [Properties::class, 'destroyDevice'])->name('devices.destroy');
-    Route::put('/devices/{deviceId}/archive', [Properties::class, 'archiveDevice'])->name('devices.archive');
-
-    Route::get('/properties/{propertyId}/devices', [Properties::class, 'getSmartDevices'])->name('properties.devices');
-    Route::get('/tenants', [LandlordController::class, 'tenants'])->name('tenants');
-    Route::get('/bills', [LandlordController::class, 'bills'])->name('bills');
-    Route::get('/maintenance-requests', [LandlordController::class, 'maintenanceRequests'])->name('maintenanceRequests');    
+    Route::post('/properties/{id}/devices', [Properties::class, 'storeDevice'])->name('properties.devices.store');
+    Route::get('/properties/{id}/devices', [Properties::class, 'getSmartDevices'])->name('properties.devices.index');
+    Route::get('/devices/{id}/edit', [Properties::class, 'editDevice'])->name('devices.edit');
+    Route::put('/devices/{id}', [Properties::class, 'updateDevice'])->name('devices.update');
+    Route::delete('/devices/{id}', [Properties::class, 'destroyDevice'])->name('devices.destroy');
+    Route::put('/devices/{id}/archive', [Properties::class, 'archiveDevice'])->name('devices.archive');
+    
+    // Device Status Update (for AJAX power control)
+    Route::post('/devices/{id}/status', [LandlordController::class, 'updateDeviceStatus'])->name('devices.update-status');
 });
 
 //for the tenants
