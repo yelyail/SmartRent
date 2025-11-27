@@ -181,9 +181,24 @@ Route::middleware(['auth', 'role:tenants'])->prefix('tenants')->name('tenants.')
     Route::get('/properties/{id}', [TenantsController::class, 'getProperty'])->name('properties.details');
     Route::post('/properties/{id}/rent', [TenantsController::class, 'rentProperty'])->name('properties.rent');
     
-    // FIXED: Renamed to avoid conflict
-    Route::get('/my-leases', [TenantsController::class, 'myLeases'])->name('myLeases'); // Changed from 'renting'
+    Route::get('/my-leases', [TenantsController::class, 'myLeases'])->name('myLeases');
     Route::get('/leases', [TenantsController::class, 'leases'])->name('leases');
+
+    // Add these API routes inside the tenants group
+    Route::get('/api/payments/history', [PaymentController::class, 'getPaymentHistory'])->name('payments.history');
+    Route::get('/api/billings', [PaymentController::class, 'getUserBillings'])->name('billings');
+    Route::get('/api/payments/{paymentId}/invoice-pdf', [PaymentController::class, 'exportInvoicePdf'])->name('payments.invoice-pdf');
+    Route::get('/api/payments/{paymentId}/invoice-details', [PaymentController::class, 'getInvoiceDetails'])->name('payments.invoice-details');
+    Route::get('/api/payments/export-report-pdf', [PaymentController::class, 'exportPaymentReportPdf'])->name('payments.export-report');
+
+     Route::get('/api/test-auth', function () {
+        return response()->json([
+            'authenticated' => Auth::check(),
+            'user_id' => Auth::id(),
+            'user' => Auth::user(),
+            'message' => 'This is a test API endpoint'
+        ]);
+    });
 });
 
 
@@ -199,22 +214,3 @@ Route::middleware(['auth', 'role:staff'])->group(function () {
     Route::get('/payment', [StaffController::class, 'payment'])->name('staff.payment');
 });
 
-
-
-Route::get('/debug-database-kyc', function() {
-    $kycDocuments = \App\Models\KycDocument::all();
-    
-    return response()->json(
-        $kycDocuments->map(function($doc) {
-            return [
-                'kyc_id' => $doc->kyc_id,
-                'user_id' => $doc->user_id,
-                'doc_name' => $doc->doc_name,
-                'doc_path' => $doc->doc_path,
-                'proof_of_income' => $doc->proof_of_income,
-                'file_exists' => file_exists(public_path("storage/{$doc->doc_path}")),
-                'income_file_exists' => $doc->proof_of_income ? file_exists(public_path("storage/{$doc->proof_of_income}")) : false,
-            ];
-        })
-    );
-})->middleware(['auth', 'role:admin']);

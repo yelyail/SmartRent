@@ -16,15 +16,15 @@
     <div class="flex h-screen">
         <!-- Sidebar -->
         <div class="w-64 bg-white shadow-lg flex flex-col">
-            <!-- Logo -->
-            <div class="p-6 border-b border-gray-200">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-home text-white text-lg"></i>
+            <!-- Logo Section -->
+            <div class="p-2 border-b border-gray-700">
+                <div class="flex items-center space-x-4">
+                    <div class="w-24 h-24 rounded-xl flex items-center justify-center shadow-lg">
+                        <img src="{{ asset('images/logo.png') }}" alt="SmartRent Logo" class="w-24 h-24 object-contain">
                     </div>
-                    <div>
-                        <h2 class="text-xl font-bold text-gray-900">SmartRent</h2>
-                        <p class="text-sm text-gray-500">Management System</p>
+                    <div class="flex-1">
+                        <h2 class="text-lg font-bold text-gray-900">SmartRent</h2>
+                        <p class="text-xs text-gray-400 font-medium">Management System</p>
                     </div>
                 </div>
             </div>
@@ -78,9 +78,19 @@
                     <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
                         <i class="fas fa-user text-gray-600"></i>
                     </div>
-                    <div>
-                        <p class="text-sm font-medium text-gray-900">{{ Auth::user()->name ?? 'John Manager' }}</p>
-                        <p class="text-xs text-gray-500">Property Manager</p>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-md font-semibold text-gray-900 truncate capitalize">
+                            @auth
+                                {{ Auth::user()->first_name }} 
+                                @if(Auth::user()->middle_name)
+                                    {{ substr(Auth::user()->middle_name, 0, 1) }}.
+                                @endif
+                                {{ Auth::user()->last_name }}
+                            @else
+                                John Manager
+                            @endauth
+                        </p>
+                        <p class="text-xs text-gray-400 truncate capitalize">{{ Auth::user()->role }}</p>
                     </div>
                     <i class="fas fa-cog text-gray-400 ml-auto cursor-pointer hover:text-gray-600 transition-colors"></i>
                 </div>

@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Enums\UserRole;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -94,5 +95,20 @@ class User extends Authenticatable
         // If kyc_status is stored in users table
         return $this->attributes['kyc_status'] ?? 'pending';
         
+    }
+    // In your User model, update these relationships:
+    public function leases(): HasMany
+    {
+        return $this->hasMany(Leases::class, 'user_id', 'user_id');
+    }
+
+    public function payments()
+    {
+        return $this->hasManyThrough(Payment::class, Leases::class, 'user_id','lease_id', 'user_id','lease_id'  );
+    }
+
+    public function billings()
+    {
+        return $this->hasManyThrough(Billing::class, Leases::class, 'user_id', 'lease_id', 'user_id',  'lease_id'  );
     }
 }

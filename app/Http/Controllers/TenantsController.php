@@ -28,7 +28,7 @@ class TenantsController extends Controller
     
     public function analytics()
     {
-        return view('tenants.analytics');
+        return view('tenants.reports');
     }
     
     public function maintenance()
