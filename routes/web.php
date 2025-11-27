@@ -9,6 +9,7 @@ use App\Http\Controllers\{
     TenantsController,
     DashboardController,
     AdminController,
+    PaymentController,
     StaffController,
     UserManagementController,
 };
@@ -163,14 +164,18 @@ Route::middleware(['auth', 'role:tenants'])->prefix('tenants')->name('tenants.')
     Route::get('/dashboard', [TenantsController::class, 'index'])->name('dashboard');
     Route::get('/payment', [TenantsController::class, 'payment'])->name('payment');
     Route::get('/prop-assets', [TenantsController::class, 'propAssets'])->name('propAssets');
-    Route::post('/smart-devices/{id}/toggle', [TenantsController::class, 'toggleDevice'])->name('smartDevices.toggle'); // Fixed name
+    Route::post('/smart-devices/{id}/toggle', [TenantsController::class, 'toggleDevice'])->name('smartDevices.toggle');
  
     Route::get('/analytics', [TenantsController::class, 'analytics'])->name('analytics');
     Route::get('/maintenance', [TenantsController::class, 'maintenance'])->name('maintenance'); 
     Route::get('/properties', [TenantsController::class, 'properties'])->name('properties');    
     Route::get('/user-management', [TenantsController::class, 'userManagement'])->name('userManagement');
-    Route::post('/leases/{id}/pay-deposit', [TenantsController::class, 'payDeposit'])->name('leases.payDeposit');    
+
+    Route::post('/leases/{leaseId}/pay-deposit', [PaymentController::class, 'payDeposit'])->name('tenants.leases.pay-deposit');
+    Route::post('/leases/{leaseId}/pay-rent', [PaymentController::class, 'payRent'])->name('tenants.leases.pay-rent');
+
     Route::get('/submit-maintenance-request', [TenantsController::class, 'submitMaintenanceRequest'])->name('submitMaintenanceRequest');
+
     Route::get('/payment-history', [TenantsController::class, 'paymentHistory'])->name('paymentHistory');
 
     Route::get('/properties/{id}', [TenantsController::class, 'getProperty'])->name('properties.details');

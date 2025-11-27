@@ -20,7 +20,7 @@ return new class extends Migration
             $table->dateTime('payment_date');
             $table->enum('payment_method', [ 'e-cash', 'bank']);
             $table->string('reference_no')->nullable();
-
+            $table->string('transaction_type');
             $table->foreign('bill_id')->references('bill_id')->on('billings')->cascadeOnUpdate()->cascadeOnDelete();
            $table->foreign('lease_id')->references('lease_id')->on('leases')->cascadeOnUpdate()->cascadeOnDelete();
 
