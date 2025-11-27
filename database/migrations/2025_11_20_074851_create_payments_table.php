@@ -18,7 +18,7 @@ return new class extends Migration
 
             $table->decimal('amount_paid', 12, 2);
             $table->dateTime('payment_date');
-            $table->enum('payment_method', ['cash', 'e-cash', 'bank']);
+            $table->enum('payment_method', [ 'e-cash', 'bank']);
             $table->string('reference_no')->nullable();
 
             $table->foreign('bill_id')->references('bill_id')->on('billings')->cascadeOnUpdate()->cascadeOnDelete();

@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 class Leases extends Model
 {
     protected $table = 'leases';
-    public $primaryKey = 'lease_id';
+    protected $primaryKey = 'lease_id';
 
     protected $fillable = [
         'user_id',
         'prop_id',
+        'unit_id',
         'start_date',
         'end_date',
         'rent_amount',
@@ -21,11 +22,16 @@ class Leases extends Model
 
     public function property()
     {
-        return $this->belongsTo(Properties::class, 'prop_id', 'prop_id');
+        return $this->belongsTo(Property::class, 'prop_id', 'prop_id');
     }
-    public function users()
+
+    public function user()
     {
         return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
- 
+
+    public function unit()
+    {
+        return $this->belongsTo(PropertyUnits::class, 'unit_id', 'unit_id');
+    }
 }

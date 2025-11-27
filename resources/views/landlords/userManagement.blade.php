@@ -4,13 +4,6 @@
 @section('page-title', 'Tenants')
 @section('page-description', 'Manage tenant information, leases, and communications.')
 
-@section('header-actions')
-    <button id="addTenantBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center space-x-2">
-        <i class="fas fa-plus text-sm"></i>
-        <span>Add Tenant</span>
-    </button>
-@endsection
-
 @section('content')
 <div class="p-8 pb-4">
     <!-- Stats Cards -->
@@ -23,7 +16,7 @@
                 </div>
                 <div>
                     <p class="text-sm text-gray-600 mb-1">Total Tenants</p>
-                    <p class="text-3xl font-bold text-gray-900">6</p>
+                    <p class="text-3xl font-bold text-gray-900">{{ $totalTenants }}</p>
                 </div>
             </div>
         </div>
@@ -36,7 +29,7 @@
                 </div>
                 <div>
                     <p class="text-sm text-gray-600 mb-1">Active</p>
-                    <p class="text-3xl font-bold text-gray-900">4</p>
+                    <p class="text-3xl font-bold text-gray-900">{{ $activeTenants }}</p>
                 </div>
             </div>
         </div>
@@ -49,7 +42,7 @@
                 </div>
                 <div>
                     <p class="text-sm text-gray-600 mb-1">Late Payments</p>
-                    <p class="text-3xl font-bold text-gray-900">1</p>
+                    <p class="text-3xl font-bold text-gray-900">{{ $latePayments }}</p>
                 </div>
             </div>
         </div>
@@ -62,7 +55,7 @@
                 </div>
                 <div>
                     <p class="text-sm text-gray-600 mb-1">Expiring Soon</p>
-                    <p class="text-3xl font-bold text-gray-900">2</p>
+                    <p class="text-3xl font-bold text-gray-900">{{ $expiringSoon }}</p>
                 </div>                           
             </div>
         </div>
@@ -80,9 +73,10 @@
             <div class="flex space-x-4 w-full md:w-auto">
                 <select id="statusFilter" class="border border-gray-300 rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full md:w-auto">
                     <option value="all">All Status</option>
-                    <option value="Active">Active</option>
-                    <option value="Notice">Notice</option>
-                    <option value="Expired">Expired</option>
+                    <option value="active">Active</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="terminated">Terminated</option>
                 </select>
                 <button id="clearFilters" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
                     Clear
@@ -99,30 +93,40 @@
                     <tr>
                         <th class="text-left py-4 px-6 font-medium text-gray-700">Tenant</th>
                         <th class="text-left py-4 px-6 font-medium text-gray-700">Property</th>
-                        <th class="text-left py-4 px-6 font-medium text-gray-700">Lease</th>
+                        <th class="text-left py-4 px-6 font-medium text-gray-700">Unit</th>
+                        <th class="text-left py-4 px-6 font-medium text-gray-700">Lease Period</th>
                         <th class="text-left py-4 px-6 font-medium text-gray-700">Rent</th>
                         <th class="text-left py-4 px-6 font-medium text-gray-700">Status</th>
-                        <th class="text-left py-4 px-6 font-medium text-gray-700">Payment</th>
+                        <th class="text-left py-4 px-6 font-medium text-gray-700">Deposit</th>
                         <th class="text-left py-4 px-6 font-medium text-gray-700">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="tenantsTableBody" class="divide-y divide-gray-200">
-                    <!-- Sarah Johnson -->
-                    <tr class="hover:bg-gray-50 transition-colors" data-status="Active" data-name="Sarah Johnson" data-property="Sunset Villa #12">
+                    @forelse($leases as $lease)
+                    <tr class="hover:bg-gray-50 transition-colors" 
+                        data-status="{{ $lease->status }}" 
+                        data-name="{{ $lease->user->first_name }} {{ $lease->user->last_name }}" 
+                        data-property="{{ $lease->property->property_name }}">
                         <td class="py-4 px-6">
                             <div class="flex items-center space-x-3">
-                                <img src="https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop" alt="Sarah Johnson" class="w-10 h-10 rounded-full object-cover">
+                                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-user text-blue-600"></i>
+                                </div>
                                 <div>
-                                    <p class="font-medium text-gray-900">Sarah Johnson</p>
+                                    <p class="font-medium text-gray-900">
+                                        {{ $lease->user->first_name }} {{ $lease->user->last_name }}
+                                    </p>
                                     <div class="flex items-center space-x-4 text-sm text-gray-500">
                                         <span class="flex items-center space-x-1">
                                             <i class="fas fa-envelope text-xs"></i>
-                                            <span>sarah.johnson@email.com</span>
+                                            <span>{{ $lease->user->email }}</span>
                                         </span>
+                                        @if($lease->user->phone_num)
                                         <span class="flex items-center space-x-1">
                                             <i class="fas fa-phone text-xs"></i>
-                                            <span>(555) 123-4567</span>
+                                            <span>{{ $lease->user->phone_num }}</span>
                                         </span>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -131,393 +135,633 @@
                             <div class="flex items-center space-x-2">
                                 <i class="fas fa-home text-gray-400"></i>
                                 <div>
-                                    <p class="font-medium text-gray-900">Sunset Villa #12</p>
-                                    <p class="text-sm text-gray-500">Unit 12A</p>
+                                    <p class="font-medium text-gray-900">{{ $lease->property->property_name }}</p>
+                                    <p class="text-sm text-gray-500">{{ $lease->property->property_address }}</p>
                                 </div>
                             </div>
+                        </td>
+                        <td class="py-4 px-6">
+                            @if($lease->unit)
+                                <p class="font-medium text-gray-900">{{ $lease->unit->unit_name ?? 'Unit ' . $lease->unit->unit_num }}</p>
+                                <p class="text-sm text-gray-500">{{ $lease->unit->unit_type }}</p>
+                            @else
+                                <p class="text-sm text-gray-500">No unit assigned</p>
+                            @endif
                         </td>
                         <td class="py-4 px-6">
                             <div class="flex items-center space-x-2">
                                 <i class="fas fa-calendar text-gray-400"></i>
                                 <div>
-                                    <p class="font-medium text-gray-900">1/15/2024</p>
-                                    <p class="text-sm text-gray-500">to 1/14/2025</p>
+                                    <p class="font-medium text-gray-900">{{ $lease->start_date->format('M d, Y') }}</p>
+                                    <p class="text-sm text-gray-500">to {{ $lease->end_date->format('M d, Y') }}</p>
                                 </div>
                             </div>
                         </td>
                         <td class="py-4 px-6">
-                            <p class="font-medium text-gray-900">$2,800</p>
+                            <p class="font-medium text-gray-900">₱{{ number_format($lease->rent_amount, 2) }}</p>
+                            <p class="text-sm text-gray-500">per month</p>
                         </td>
                         <td class="py-4 px-6">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Active
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                {{ $lease->status === 'active' ? 'bg-green-100 text-green-800' : 
+                                   ($lease->status === 'approved' ? 'bg-blue-100 text-blue-800' : 
+                                   ($lease->status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                                   'bg-red-100 text-red-800')) }}">
+                                {{ ucfirst($lease->status) }}
                             </span>
                         </td>
                         <td class="py-4 px-6">
                             <div class="flex items-center space-x-2">
-                                <i class="fas fa-check-circle text-green-500"></i>
-                                <span class="text-sm text-green-600 font-medium">Current</span>
+                                @if($lease->deposit_paid)
+                                <i class="fas fa-check-circle text-green-500 text-lg" title="Deposit Paid"></i>
+                                @else
+                                <i class="fas fa-clock text-yellow-500 text-lg" title="Deposit Pending"></i>
+                                @endif
                             </div>
                         </td>
-                        <td class="py-4 px-6 relative">
-                            <button class="text-gray-400 hover:text-gray-600 transition-colors action-menu-btn">
-                                <i class="fas fa-ellipsis-v"></i>
-                            </button>
-                            <div class="action-menu absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 hidden">
-                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">View Details</a>
-                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Edit Tenant</a>
-                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Send Message</a>
-                                <a href="#" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">Remove Tenant</a>
+                        <td class="py-4 px-6">
+                            <div class="flex items-center space-x-2">
+                                <!-- View Details Icon -->
+                                <button onclick="openTenantDetails({{ $lease->user->user_id }})" class="text-blue-600 hover:text-blue-800 transition-colors" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                
+                                <!-- Approve Lease Icon (only show for pending leases) -->
+                                @if($lease->status === 'pending')
+                                <button onclick="approveLease({{ $lease->lease_id }})" class="text-green-600 hover:text-green-800 transition-colors" title="Approve Lease">
+                                    <i class="fas fa-check-circle"></i>
+                                </button>
+                                @endif
+                                
+                                <!-- Terminate Lease Icon -->
+                                <button onclick="terminateLease({{ $lease->lease_id }})" class="text-red-600 hover:text-red-800 transition-colors" title="Terminate Lease">
+                                    <i class="fas fa-times-circle"></i>
+                                </button>
                             </div>
                         </td>
                     </tr>
-
-                    <!-- Add other tenant rows here (Michael Chen, Emily Rodriguez, etc.) -->
-                    <!-- ... -->
-                    
+                    @empty
+                    <tr>
+                        <td colspan="8" class="py-8 px-6 text-center">
+                            <div class="text-gray-400 text-4xl mb-2">👥</div>
+                            <h3 class="text-lg font-semibold text-gray-600 mb-2">No Tenants Found</h3>
+                            <p class="text-gray-500 mb-4">You don't have any tenants yet.</p>
+                        </td>
+                    </tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>
     </div>
 </div>
 
-<!-- Add Tenant Modal -->
-<div id="addTenantModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+<!-- Tenant Details Modal -->
+<div id="tenantDetailsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
         <!-- Modal Header -->
         <div class="flex items-center justify-between p-6 border-b border-gray-200">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-user-plus text-blue-600"></i>
+                    <i class="fas fa-user text-blue-600"></i>
                 </div>
                 <div>
-                    <h2 class="text-xl font-bold text-gray-900">Add New Tenant</h2>
-                    <p class="text-sm text-gray-500">Fill in the tenant information below</p>
+                    <h2 class="text-xl font-bold text-gray-900" id="tenantModalName">Tenant Details</h2>
+                    <p class="text-sm text-gray-500">Complete tenant information and documents</p>
                 </div>
             </div>
-            <button id="closeModalBtn" class="text-gray-400 hover:text-gray-600 transition-colors">
+            <button onclick="closeTenantDetails()" class="text-gray-400 hover:text-gray-600 transition-colors">
                 <i class="fas fa-times text-xl"></i>
             </button>
         </div>
 
         <!-- Modal Body -->
-        <form id="addTenantForm" class="p-6">
+        <div class="p-6">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Personal Information -->
-                <div class="lg:col-span-2">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                        <i class="fas fa-user text-blue-600"></i>
-                        <span>Personal Information</span>
-                    </h3>
-                </div>
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                            <i class="fas fa-user-circle text-blue-600"></i>
+                            <span>Personal Information</span>
+                        </h3>
+                        <div class="bg-gray-50 rounded-lg p-4 space-y-3">
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Full Name:</span>
+                                <span class="text-sm font-medium text-gray-900" id="tenantFullName"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Email:</span>
+                                <span class="text-sm font-medium text-gray-900" id="tenantEmail"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Phone:</span>
+                                <span class="text-sm font-medium text-gray-900" id="tenantPhone"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Member Since:</span>
+                                <span class="text-sm font-medium text-gray-900" id="tenantSince"></span>
+                            </div>
+                        </div>
+                    </div>
 
-                <!-- First Name -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        First Name <span class="text-red-500">*</span>
-                    </label>
-                    <input type="text" id="firstName" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" placeholder="Enter first name">
-                </div>
-
-                <!-- Last Name -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Last Name <span class="text-red-500">*</span>
-                    </label>
-                    <input type="text" id="lastName" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" placeholder="Enter last name">
-                </div>
-
-                <!-- Email -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Email Address <span class="text-red-500">*</span>
-                    </label>
-                    <input type="email" id="email" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" placeholder="Enter email address">
-                </div>
-
-                <!-- Phone -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Phone Number <span class="text-red-500">*</span>
-                    </label>
-                    <input type="tel" id="phone" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" placeholder="(555) 123-4567">
-                </div>
-
-                <!-- Property Information -->
-                <div class="lg:col-span-2 mt-6">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                        <i class="fas fa-home text-blue-600"></i>
-                        <span>Property Information</span>
-                    </h3>
-                </div>
-
-                <!-- Property -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Property <span class="text-red-500">*</span>
-                    </label>
-                    <select id="property" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
-                        <option value="">Select a property</option>
-                        <option value="sunset-villa">Sunset Villa</option>
-                        <option value="downtown-loft">Downtown Loft</option>
-                        <option value="garden-court">Garden Court</option>
-                        <option value="tech-hub">Tech Hub</option>
-                        <option value="historic-heights">Historic Heights</option>
-                        <option value="riverside-manor">Riverside Manor</option>
-                    </select>
-                </div>
-
-                <!-- Unit -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Unit Number <span class="text-red-500">*</span>
-                    </label>
-                    <input type="text" id="unit" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" placeholder="e.g., 12A">
-                </div>
-
-                <!-- Monthly Rent -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Monthly Rent <span class="text-red-500">*</span>
-                    </label>
-                    <div class="relative">
-                        <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                        <input type="number" id="rent" required class="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" placeholder="2800">
+                    <!-- Lease Information -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                            <i class="fas fa-file-contract text-green-600"></i>
+                            <span>Lease Information</span>
+                        </h3>
+                        <div class="bg-gray-50 rounded-lg p-4 space-y-3">
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Property:</span>
+                                <span class="text-sm font-medium text-gray-900" id="leaseProperty"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Unit:</span>
+                                <span class="text-sm font-medium text-gray-900" id="leaseUnit"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Monthly Rent:</span>
+                                <span class="text-sm font-medium text-gray-900" id="leaseRent"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Lease Period:</span>
+                                <span class="text-sm font-medium text-gray-900" id="leasePeriod"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Status:</span>
+                                <span class="text-sm font-medium" id="leaseStatus"></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Lease Information -->
-                <div class="lg:col-span-2 mt-6">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                        <i class="fas fa-calendar-alt text-blue-600"></i>
-                        <span>Lease Information</span>
-                    </h3>
-                </div>
+                <!-- KYC Documents -->
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                            <i class="fas fa-id-card text-purple-600"></i>
+                            <span>KYC Documents</span>
+                            <span id="kycStatusBadge" class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"></span>
+                        </h3>
+                        
+                        <!-- ID Document -->
+                        <div class="mb-4">
+                            <h4 class="text-sm font-medium text-gray-700 mb-2">Government ID</h4>
+                            <div id="idDocument" class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                                <div class="text-gray-400 text-4xl mb-2">
+                                    <i class="fas fa-id-card"></i>
+                                </div>
+                                <p class="text-sm text-gray-500">No ID document uploaded</p>
+                            </div>
+                        </div>
 
-                <!-- Lease Start Date -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Lease Start Date <span class="text-red-500">*</span>
-                    </label>
-                    <input type="date" id="leaseStart" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
-                </div>
+                        <!-- Proof of Income -->
+                        <div>
+                            <h4 class="text-sm font-medium text-gray-700 mb-2">Proof of Income</h4>
+                            <div id="incomeDocument" class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                                <div class="text-gray-400 text-4xl mb-2">
+                                    <i class="fas fa-file-invoice-dollar"></i>
+                                </div>
+                                <p class="text-sm text-gray-500">No proof of income uploaded</p>
+                            </div>
+                        </div>
 
-                <!-- Lease End Date -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Lease End Date <span class="text-red-500">*</span>
-                    </label>
-                    <input type="date" id="leaseEnd" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
-                </div>
-
-                <!-- Additional Notes -->
-                <div class="lg:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Additional Notes
-                    </label>
-                    <textarea id="notes" rows="3" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors resize-none" placeholder="Any additional information about the tenant..."></textarea>
+                        <!-- KYC Actions -->
+                        <div id="kycActions" class="mt-4 flex space-x-2 hidden">
+                            <button onclick="approveKYC()" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2">
+                                <i class="fas fa-check text-sm"></i>
+                                <span>Approve KYC</span>
+                            </button>
+                            <button onclick="rejectKYC()" class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2">
+                                <i class="fas fa-times text-sm"></i>
+                                <span>Reject KYC</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Modal Footer -->
-            <div class="flex items-center justify-end space-x-4 mt-8 pt-6 border-t border-gray-200">
-                <button type="button" id="cancelBtn" class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
-                    Cancel
-                </button>
-                <button type="submit" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2">
-                    <i class="fas fa-save"></i>
-                    <span>Add Tenant</span>
-                </button>
-            </div>
-        </form>
+        <!-- Modal Footer -->
+        <div class="flex items-center justify-end space-x-4 p-6 border-t border-gray-200">
+            <button onclick="closeTenantDetails()" class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+                Close
+            </button>
+            <button onclick="downloadAllDocuments()" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2">
+                <i class="fas fa-download"></i>
+                <span>Download All Documents</span>
+            </button>
+        </div>
     </div>
 </div>
 @endsection
 
 @push('scripts')
 <script>
-    // Modal functionality
-    const addTenantBtn = document.getElementById('addTenantBtn');
-    const addTenantModal = document.getElementById('addTenantModal');
-    const closeModalBtn = document.getElementById('closeModalBtn');
-    const cancelBtn = document.getElementById('cancelBtn');
-    const addTenantForm = document.getElementById('addTenantForm');
+let currentTenantId = null;
+let currentKycData = null;
 
-    // Open modal
-    addTenantBtn.addEventListener('click', () => {
-        addTenantModal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
-    });
-
-    // Close modal function
-    function closeModal() {
-        addTenantModal.classList.add('hidden');
-        document.body.style.overflow = 'auto';
-        addTenantForm.reset();
-    }
-
-    // Close modal events
-    closeModalBtn.addEventListener('click', closeModal);
-    cancelBtn.addEventListener('click', closeModal);
-
-    // Close modal when clicking outside
-    addTenantModal.addEventListener('click', (e) => {
-        if (e.target === addTenantModal) {
-            closeModal();
-        }
-    });
-
-    // Close modal with Escape key
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !addTenantModal.classList.contains('hidden')) {
-            closeModal();
-        }
-    });
-
-    // Phone number formatting
-    document.getElementById('phone').addEventListener('input', function(e) {
-        let value = e.target.value.replace(/\D/g, '');
-        if (value.length >= 6) {
-            value = `(${value.slice(0,3)}) ${value.slice(3,6)}-${value.slice(6,10)}`;
-        } else if (value.length >= 3) {
-            value = `(${value.slice(0,3)}) ${value.slice(3)}`;
-        }
-        e.target.value = value;
-    });
-
-    // Form validation
-    function validateForm() {
-        const firstName = document.getElementById('firstName').value.trim();
-        const lastName = document.getElementById('lastName').value.trim();
-        const email = document.getElementById('email').value.trim();
-        const phone = document.getElementById('phone').value.trim();
-        const property = document.getElementById('property').value;
-        const unit = document.getElementById('unit').value.trim();
-        const rent = document.getElementById('rent').value;
-        const leaseStart = document.getElementById('leaseStart').value;
-        const leaseEnd = document.getElementById('leaseEnd').value;
-        
-        if (!firstName || !lastName || !email || !phone || !property || !unit || !rent || !leaseStart || !leaseEnd) {
-            alert('Please fill in all required fields.');
-            return false;
-        }
-        
-        // Email validation
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            alert('Please enter a valid email address.');
-            return false;
-        }
-        
-        // Phone validation (basic)
-        const phoneRegex = /^\(\d{3}\) \d{3}-\d{4}$/;
-        if (!phoneRegex.test(phone)) {
-            alert('Please enter a valid phone number in the format (555) 123-4567.');
-            return false;
-        }
-        
-        // Date validation
-        if (new Date(leaseStart) >= new Date(leaseEnd)) {
-            alert('Lease end date must be after lease start date.');
-            return false;
-        }
-        
-        return true;
-    }
-
-    // Form submission
-    addTenantForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        
-        if (!validateForm()) {
-            return;
-        }
-        
-        // Get form data
-        const tenantData = {
-            firstName: document.getElementById('firstName').value,
-            lastName: document.getElementById('lastName').value,
-            email: document.getElementById('email').value,
-            phone: document.getElementById('phone').value,
-            property: document.getElementById('property').value,
-            unit: document.getElementById('unit').value,
-            rent: document.getElementById('rent').value,
-            leaseStart: document.getElementById('leaseStart').value,
-            leaseEnd: document.getElementById('leaseEnd').value,
-            notes: document.getElementById('notes').value
-        };
-
-        // Here you would typically send the data to your backend
-        console.log('New tenant data:', tenantData);
-        
-        // Show success message (you can replace this with actual backend integration)
-        alert('Tenant added successfully!');
-        
-        // Close modal and reset form
-        closeModal();
-    });
-
-    // Search and filter functionality
-    const searchInput = document.getElementById('searchInput');
-    const statusFilter = document.getElementById('statusFilter');
-    const clearFilters = document.getElementById('clearFilters');
-    const tenantsTableBody = document.getElementById('tenantsTableBody');
-    const tenantRows = tenantsTableBody.querySelectorAll('tr');
-
-    function filterTenants() {
-        const searchTerm = searchInput.value.toLowerCase();
-        const statusValue = statusFilter.value;
-        
-        tenantRows.forEach(row => {
-            const name = row.getAttribute('data-name').toLowerCase();
-            const property = row.getAttribute('data-property').toLowerCase();
-            const status = row.getAttribute('data-status');
+// Open tenant details modal - Alternative fix
+// Open tenant details modal with better debugging
+function openTenantDetails(userId) {
+    currentTenantId = userId;
+    console.log('Opening tenant details for user ID:', userId);
+    
+    fetch(`/landlord/tenants/${userId}/details`)
+        .then(response => {
+            console.log('Response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Full API Response:', data);
             
-            const matchesSearch = name.includes(searchTerm) || property.includes(searchTerm);
-            const matchesStatus = statusValue === 'all' || status === statusValue;
-            
-            if (matchesSearch && matchesStatus) {
-                row.style.display = '';
+            if (data.success) {
+                console.log('Tenant data loaded successfully');
+                console.log('KYC data from API:', data.kyc);
+                currentKycData = data.kyc;
+                populateTenantDetails(data.tenant, data.kyc);
             } else {
-                row.style.display = 'none';
+                console.error('API returned error:', data.message);
+                alert('Failed to load tenant details: ' + (data.message || 'Unknown error'));
             }
+        })
+        .catch(error => {
+            console.error('Fetch error:', error);
+            alert('An error occurred while loading tenant details.');
         });
+}
+
+// Updated populateTenantDetails function to accept kyc parameter
+function populateTenantDetails(data, kyc) {
+    // Personal Information
+    document.getElementById('tenantModalName').textContent = `${data.user.first_name} ${data.user.last_name}`;
+    document.getElementById('tenantFullName').textContent = `${data.user.first_name} ${data.user.last_name}`;
+    document.getElementById('tenantEmail').textContent = data.user.email;
+    document.getElementById('tenantPhone').textContent = data.user.phone_num || 'Not provided';
+    document.getElementById('tenantSince').textContent = new Date(data.user.created_at).toLocaleDateString();
+    
+    // Lease Information
+    document.getElementById('leaseProperty').textContent = data.property.property_name;
+    document.getElementById('leaseUnit').textContent = data.unit ? (data.unit.unit_name || `Unit ${data.unit.unit_num}`) : 'Not assigned';
+    document.getElementById('leaseRent').textContent = `₱${parseFloat(data.rent_amount).toLocaleString()}`;
+    document.getElementById('leasePeriod').textContent = `${new Date(data.start_date).toLocaleDateString()} - ${new Date(data.end_date).toLocaleDateString()}`;
+    
+    const statusElement = document.getElementById('leaseStatus');
+    statusElement.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+    statusElement.className = `text-sm font-medium ${
+        data.status === 'active' ? 'text-green-600' :
+        data.status === 'approved' ? 'text-blue-600' :
+        data.status === 'pending' ? 'text-yellow-600' :
+        'text-red-600'
+    }`;
+    
+    // KYC Documents - Use the passed kyc parameter
+    populateKYCDocuments(kyc);
+    
+    // Show modal
+    document.getElementById('tenantDetailsModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+function populateKYCDocuments(kyc) {
+    const kycStatusBadge = document.getElementById('kycStatusBadge');
+    const kycActions = document.getElementById('kycActions');
+    
+    console.log('=== KYC DEBUG INFO ===');
+    console.log('KYC data received:', kyc);
+    console.log('KYC Status Badge element:', kycStatusBadge);
+    console.log('KYC Actions element:', kycActions);
+    
+    // Check if elements exist
+    if (!kycStatusBadge) {
+        console.error('KYC Status Badge element not found!');
+        return;
     }
-
-    searchInput.addEventListener('input', filterTenants);
-    statusFilter.addEventListener('change', filterTenants);
+    if (!kycActions) {
+        console.error('KYC Actions element not found!');
+    }
     
-    clearFilters.addEventListener('click', () => {
-        searchInput.value = '';
-        statusFilter.value = 'all';
-        filterTenants();
-    });
-
-    // Action menu functionality
-    const actionMenuButtons = document.querySelectorAll('.action-menu-btn');
+    // Check if kyc exists and has data
+    const hasKycData = kyc && (kyc.doc_path || kyc.proof_of_income || kyc.status);
+    console.log('Has KYC data:', hasKycData);
     
-    actionMenuButtons.forEach(button => {
-        button.addEventListener('click', (e) => {
-            e.stopPropagation();
+    if (hasKycData) {
+        // KYC Status
+        const status = kyc.status || 'pending';
+        console.log('Setting KYC status to:', status);
+        
+        kycStatusBadge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        kycStatusBadge.className = `ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            status === 'approved' ? 'bg-green-100 text-green-800' :
+            status === 'rejected' ? 'bg-red-100 text-red-800' :
+            'bg-yellow-100 text-yellow-800'
+        }`;
+        
+        // Make sure the badge is visible
+        kycStatusBadge.style.display = 'inline-flex';
+        
+        // ID Document
+        if (kyc.doc_path) {
+            const idDocUrl = `/storage/${kyc.doc_path}`;
+            const fileName = kyc.doc_path.split('/').pop() || 'id_document';
             
-            // Close all other open menus
-            document.querySelectorAll('.action-menu').forEach(menu => {
-                if (menu !== button.nextElementSibling) {
-                    menu.classList.add('hidden');
-                }
+            document.getElementById('idDocument').innerHTML = `
+                <div class="text-center">
+                    <i class="fas fa-id-card text-green-500 text-3xl mb-2"></i>
+                    <p class="text-sm font-medium text-gray-900 mb-1">ID Document</p>
+                    <p class="text-xs text-gray-500 mb-3 truncate">${fileName}</p>
+                    <div class="flex justify-center space-x-2">
+                        <button onclick="viewDocument('${idDocUrl}')" class="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-1 border border-blue-600 rounded hover:bg-blue-50 transition-colors">
+                            <i class="fas fa-eye mr-1"></i>View
+                        </button>
+                        <button onclick="downloadDocument('${idDocUrl}', '${fileName}')" class="text-green-600 hover:text-green-800 text-sm font-medium px-3 py-1 border border-green-600 rounded hover:bg-green-50 transition-colors">
+                            <i class="fas fa-download mr-1"></i>Download
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            document.getElementById('idDocument').innerHTML = `
+                <div class="text-center">
+                    <div class="text-gray-400 text-4xl mb-2">
+                        <i class="fas fa-id-card"></i>
+                    </div>
+                    <p class="text-sm text-gray-500">No ID document uploaded</p>
+                </div>
+            `;
+        }
+        
+        // Proof of Income
+        if (kyc.proof_of_income) {
+            const incomeDocUrl = `/storage/${kyc.proof_of_income}`;
+            const fileName = kyc.proof_of_income.split('/').pop() || 'proof_of_income';
+            
+            document.getElementById('incomeDocument').innerHTML = `
+                <div class="text-center">
+                    <i class="fas fa-file-invoice-dollar text-green-500 text-3xl mb-2"></i>
+                    <p class="text-sm font-medium text-gray-900 mb-1">Proof of Income</p>
+                    <p class="text-xs text-gray-500 mb-3 truncate">${fileName}</p>
+                    <div class="flex justify-center space-x-2">
+                        <button onclick="viewDocument('${incomeDocUrl}')" class="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-1 border border-blue-600 rounded hover:bg-blue-50 transition-colors">
+                            <i class="fas fa-eye mr-1"></i>View
+                        </button>
+                        <button onclick="downloadDocument('${incomeDocUrl}', '${fileName}')" class="text-green-600 hover:text-green-800 text-sm font-medium px-3 py-1 border border-green-600 rounded hover:bg-green-50 transition-colors">
+                            <i class="fas fa-download mr-1"></i>Download
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            document.getElementById('incomeDocument').innerHTML = `
+                <div class="text-center">
+                    <div class="text-gray-400 text-4xl mb-2">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                    </div>
+                    <p class="text-sm text-gray-500">No proof of income uploaded</p>
+                </div>
+            `;
+        }
+        
+        // Show KYC actions if pending
+        if (status === 'pending') {
+            kycActions.classList.remove('hidden');
+        } else {
+            kycActions.classList.add('hidden');
+        }
+        
+        console.log('KYC status badge updated successfully');
+    } else {
+        // No KYC data found
+        console.log('No KYC data found, setting to "Not Submitted"');
+        kycStatusBadge.textContent = 'Not Submitted';
+        kycStatusBadge.className = 'ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800';
+        kycStatusBadge.style.display = 'inline-flex';
+        kycActions.classList.add('hidden');
+        
+        // Reset document sections
+        document.getElementById('idDocument').innerHTML = `
+            <div class="text-center">
+                <div class="text-gray-400 text-4xl mb-2">
+                    <i class="fas fa-id-card"></i>
+                </div>
+                <p class="text-sm text-gray-500">No ID document uploaded</p>
+            </div>
+        `;
+        
+        document.getElementById('incomeDocument').innerHTML = `
+            <div class="text-center">
+                <div class="text-gray-400 text-4xl mb-2">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                </div>
+                <p class="text-sm text-gray-500">No proof of income uploaded</p>
+            </div>
+        `;
+    }
+}
+
+// Enhanced document viewing and downloading
+function viewDocument(url) {
+    // For PDF files, open in new tab
+    if (url.toLowerCase().endsWith('.pdf')) {
+        window.open(url, '_blank');
+    } else {
+        // For images, open in a modal or new tab
+        window.open(url, '_blank');
+    }
+}
+
+function downloadDocument(url, filename) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank'; // Open in new tab for better UX
+    
+    // Ensure filename has proper extension
+    if (!filename.toLowerCase().includes('.')) {
+        if (url.toLowerCase().endsWith('.pdf')) {
+            filename += '.pdf';
+        } else if (url.toLowerCase().endsWith('.jpg') || url.toLowerCase().endsWith('.jpeg')) {
+            filename += '.jpg';
+        } else if (url.toLowerCase().endsWith('.png')) {
+            filename += '.png';
+        }
+    }
+    
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function downloadAllDocuments() {
+    if (currentKycData) {
+        let documents = [];
+        
+        if (currentKycData.doc_path) {
+            const idDocUrl = `/storage/${currentKycData.doc_path}`;
+            const fileName = currentKycData.doc_path.split('/').pop() || 'id_document';
+            documents.push({
+                url: idDocUrl,
+                filename: fileName
+            });
+        }
+        
+        if (currentKycData.proof_of_income) {
+            const incomeDocUrl = `/storage/${currentKycData.proof_of_income}`;
+            const fileName = currentKycData.proof_of_income.split('/').pop() || 'proof_of_income';
+            documents.push({
+                url: incomeDocUrl,
+                filename: fileName
+            });
+        }
+        
+        if (documents.length > 0) {
+            // Download documents with delay to avoid browser blocking multiple downloads
+            documents.forEach((doc, index) => {
+                setTimeout(() => {
+                    downloadDocument(doc.url, doc.filename);
+                }, index * 1000);
             });
             
-            // Toggle current menu
-            const menu = button.nextElementSibling;
-            menu.classList.toggle('hidden');
-        });
-    });
+            if (documents.length === 1) {
+                alert('Downloading document...');
+            } else {
+                alert(`Downloading ${documents.length} documents...`);
+            }
+        } else {
+            alert('No documents available to download.');
+        }
+    } else {
+        alert('No KYC data available.');
+    }
+}
 
-    // Close menus when clicking elsewhere
-    document.addEventListener('click', () => {
-        document.querySelectorAll('.action-menu').forEach(menu => {
-            menu.classList.add('hidden');
-        });
+// Close tenant details modal
+function closeTenantDetails() {
+    document.getElementById('tenantDetailsModal').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    currentTenantId = null;
+    currentKycData = null;
+}
+
+// KYC Approval/Rejection
+function approveKYC() {
+    if (confirm('Are you sure you want to approve this KYC?')) {
+        updateKYCStatus('approved');
+    }
+}
+
+function rejectKYC() {
+    if (confirm('Are you sure you want to reject this KYC?')) {
+        updateKYCStatus('rejected');
+    }
+}
+
+function updateKYCStatus(status) {
+    fetch(`/landlord/kyc/${currentKycData.kyc_id}/status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ status: status })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`KYC ${status} successfully!`);
+            closeTenantDetails();
+        } else {
+            alert('Failed to update KYC status: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while updating KYC status.');
     });
+}
+
+// Search and filter functionality
+const searchInput = document.getElementById('searchInput');
+const statusFilter = document.getElementById('statusFilter');
+const clearFilters = document.getElementById('clearFilters');
+const tenantsTableBody = document.getElementById('tenantsTableBody');
+const tenantRows = tenantsTableBody.querySelectorAll('tr[data-status]');
+
+function filterTenants() {
+    const searchTerm = searchInput.value.toLowerCase();
+    const statusValue = statusFilter.value;
+    
+    tenantRows.forEach(row => {
+        const name = row.getAttribute('data-name').toLowerCase();
+        const property = row.getAttribute('data-property').toLowerCase();
+        const status = row.getAttribute('data-status');
+        
+        const matchesSearch = name.includes(searchTerm) || property.includes(searchTerm);
+        const matchesStatus = statusValue === 'all' || status === statusValue;
+        
+        if (matchesSearch && matchesStatus) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+searchInput.addEventListener('input', filterTenants);
+statusFilter.addEventListener('change', filterTenants);
+
+clearFilters.addEventListener('click', () => {
+    searchInput.value = '';
+    statusFilter.value = 'all';
+    filterTenants();
+});
+
+// Lease management functions
+function approveLease(leaseId) {
+    if (confirm('Are you sure you want to approve this lease?')) {
+        fetch(`/landlord/leases/${leaseId}/approve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed to approve lease: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while approving the lease.');
+        });
+    }
+}
+
+function terminateLease(leaseId) {
+    if (confirm('Are you sure you want to terminate this lease? This action cannot be undone.')) {
+        fetch(`/landlord/leases/${leaseId}/terminate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed to terminate lease: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while terminating the lease.');
+        });
+    }
+}
 </script>
 @endpush

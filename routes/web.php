@@ -118,12 +118,22 @@ Route::middleware(['auth', 'role:landlord'])->prefix('landlord')->name('landlord
     Route::get('/prop-assets', [LandlordController::class, 'propAssets'])->name('propAssets');
     Route::get('/analytics', [LandlordController::class, 'analytics'])->name('analytics');
     Route::get('/maintenance', [LandlordController::class, 'maintenance'])->name('maintenance');
-    Route::get('/tenants', [LandlordController::class, 'tenants'])->name('tenants');
     Route::get('/bills', [LandlordController::class, 'bills'])->name('bills');
     Route::get('/maintenance-requests', [LandlordController::class, 'maintenanceRequests'])->name('maintenanceRequests');
+    Route::get('/user-management', [LandlordController::class, 'userManagement'])->name('userManagement');
+    
+    //tenants
+    // Add these routes
+    Route::post('/leases/{id}/approve', [LandlordController::class, 'approveLease'])->name('leases.approve');
+    Route::post('/leases/{id}/terminate', [LandlordController::class, 'terminateLease'])->name('leases.terminate');
     
     // Properties routes
     Route::get('/properties', [LandlordController::class, 'properties'])->name('properties');
+    Route::get('/tenants/{id}/details', [LandlordController::class, 'getTenantDetails'])->name('tenants.details');
+    
+    // Add KYC status update route
+    Route::post('/kyc/{id}/status', [LandlordController::class, 'updateKycStatus'])->name('kyc.update-status');
+    
     Route::post('/properties', [Properties::class, 'store'])->name('properties.store');
     Route::get('/properties/{id}', [Properties::class, 'show'])->name('properties.show');
     Route::get('/properties/{id}/edit', [Properties::class, 'edit'])->name('properties.edit');
@@ -149,12 +159,28 @@ Route::middleware(['auth', 'role:landlord'])->prefix('landlord')->name('landlord
 });
 
 //for the tenants
-Route::middleware(['auth', 'role:tenant'])->group(function () {
-    Route::get('/dashboard', [TenantsController::class, 'index'])->name('tenants.dashboard');
-    Route::get('/my-bills', [TenantsController::class, 'myBills'])->name('tenants.myBills');
-    Route::get('/submit-maintenance-request', [TenantsController::class, 'submitMaintenanceRequest'])->name('tenants.submitMaintenanceRequest');
-    Route::get('/payment-history', [TenantsController::class, 'paymentHistory'])->name('tenants.paymentHistory');
-}); 
+Route::middleware(['auth', 'role:tenants'])->prefix('tenants')->name('tenants.')->group(function () {
+    Route::get('/dashboard', [TenantsController::class, 'index'])->name('dashboard');
+    Route::get('/payment', [TenantsController::class, 'payment'])->name('payment');
+    Route::get('/prop-assets', [TenantsController::class, 'propAssets'])->name('propAssets');
+    Route::post('/smart-devices/{id}/toggle', [TenantsController::class, 'toggleDevice'])->name('smartDevices.toggle'); // Fixed name
+ 
+    Route::get('/analytics', [TenantsController::class, 'analytics'])->name('analytics');
+    Route::get('/maintenance', [TenantsController::class, 'maintenance'])->name('maintenance'); 
+    Route::get('/properties', [TenantsController::class, 'properties'])->name('properties');    
+    Route::get('/user-management', [TenantsController::class, 'userManagement'])->name('userManagement');
+    Route::post('/leases/{id}/pay-deposit', [TenantsController::class, 'payDeposit'])->name('leases.payDeposit');    
+    Route::get('/submit-maintenance-request', [TenantsController::class, 'submitMaintenanceRequest'])->name('submitMaintenanceRequest');
+    Route::get('/payment-history', [TenantsController::class, 'paymentHistory'])->name('paymentHistory');
+
+    Route::get('/properties/{id}', [TenantsController::class, 'getProperty'])->name('properties.details');
+    Route::post('/properties/{id}/rent', [TenantsController::class, 'rentProperty'])->name('properties.rent');
+    
+    // FIXED: Renamed to avoid conflict
+    Route::get('/my-leases', [TenantsController::class, 'myLeases'])->name('myLeases'); // Changed from 'renting'
+    Route::get('/leases', [TenantsController::class, 'leases'])->name('leases');
+});
+
 
 //for the staff
 Route::middleware(['auth', 'role:staff'])->group(function () {

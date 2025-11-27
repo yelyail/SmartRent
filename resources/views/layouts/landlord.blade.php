@@ -29,8 +29,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Navigation -->
             <!-- Navigation -->
         <nav class="flex-1 px-4 py-6 overflow-y-auto">
             <div class="space-y-1">
@@ -75,7 +73,7 @@
                                    {{ request()->routeIs('landlords.properties*') ? 'text-white' : 'text-gray-400 group-hover:text-white' }}">
                                 </i>
                             </div>
-                            <span class="font-medium">Properties</span>
+                            <span class="font-medium">My Properties</span>
 
                             @if(request()->routeIs('landlords.properties*'))
                                 <div class="ml-auto w-2 h-2 bg-white rounded-full"></div>
@@ -106,20 +104,20 @@
 
                     {{-- Tenants --}}
                     <li>
-                        <a href="{{ route('landlords.tenants') }}"
+                        <a href="{{ route('landlords.userManagement') }}"
                            class="flex items-center space-x-3 px-4 py-3 text-gray-400 rounded-xl 
                            transition-all duration-200 group
                            hover:bg-blue-500 hover:text-white
-                           {{ request()->routeIs('landlords.tenants*') ? 'bg-blue-600 text-white shadow-lg' : '' }}">
+                           {{ request()->routeIs('landlords.userManagement*') ? 'bg-blue-600 text-white shadow-lg' : '' }}">
 
                             <div class="w-6 h-6 flex items-center justify-center">
                                 <i class="fas fa-users text-sm 
-                                   {{ request()->routeIs('landlords.tenants*') ? 'text-white' : 'text-gray-400 group-hover:text-white' }}">
+                                   {{ request()->routeIs('landlords.userManagement*') ? 'text-white' : 'text-gray-400 group-hover:text-white' }}">
                                 </i>
                             </div>
-                            <span class="font-medium">Tenants</span>
+                            <span class="font-medium">Renters</span>
 
-                            @if(request()->routeIs('landlords.tenants*'))
+                            @if(request()->routeIs('landlords.userManagement*'))
                                 <div class="ml-auto w-2 h-2 bg-white rounded-full"></div>
                             @endif
                         </a>
@@ -138,7 +136,7 @@
                                    {{ request()->routeIs('landlords.maintenance*') ? 'text-white' : 'text-gray-400 group-hover:text-white' }}">
                                 </i>
                             </div>
-                            <span class="font-medium">Maintenance</span>
+                            <span class="font-medium">Maintenance Requests</span>
 
                             @if(request()->routeIs('landlords.maintenance*'))
                                 <div class="ml-auto w-2 h-2 bg-white rounded-full"></div>
@@ -159,7 +157,7 @@
                                    {{ request()->routeIs('landlords.analytics*') ? 'text-white' : 'text-gray-400 group-hover:text-white' }}">
                                 </i>
                             </div>
-                            <span class="font-medium">Analytics</span>
+                            <span class="font-medium">Analytics & Reports</span>
 
                             @if(request()->routeIs('landlords.analytics*'))
                                 <div class="ml-auto w-2 h-2 bg-white rounded-full"></div>

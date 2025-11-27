@@ -70,7 +70,7 @@ class AuthController extends Controller
             case UserRole::LANDLORD:
                 return redirect()->route('landlords.dashboard');
             case UserRole::TENANTS:
-                return redirect()->route('tenants.dashboard');
+                return redirect()->route('tenants.dashboard'); // This matches your route name
             case UserRole::STAFF:
                 return redirect()->route('staff.dashboard');
             default:

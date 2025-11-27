@@ -22,7 +22,7 @@ class Property extends Model
     ];
 
     // Relationship with PropertyUnit
-    public function units(): HasMany
+    public function units()
     {
         return $this->hasMany(PropertyUnits::class, 'prop_id', 'prop_id');
     }
@@ -34,7 +34,7 @@ class Property extends Model
     }
 
     // Relationship with User
-    public function user()
+    public function landlord()
     {
         return $this->belongsTo(User::class, 'user_id', 'user_id');
     }

@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'SmartRent - Property Management Dashboard')</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
     <!-- Vite compiled CSS -->
     @vite('resources/css/app.css')
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -37,33 +39,34 @@
                         </a>
                     </li>
                     <li>
+                        <a href="{{ route('tenants.leases') }}" class="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors {{ request()->routeIs('tenants.leases*') ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : '' }}">
+                            <i class="fas fa-file-contract w-5"></i>
+                            <span class="{{ request()->routeIs('tenants.leases*') ? 'font-medium' : '' }}">My Rentals</span>
+                        </a>
+                    </li>
+                    <li>
                         <a href="{{ route('tenants.properties') }}" class="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors {{ request()->routeIs('tenants.properties*') ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : '' }}">
                             <i class="fas fa-building w-5"></i>
-                            <span class="{{ request()->routeIs('tenants.properties*') ? 'font-medium' : '' }}">Properties</span>
+                            <span class="{{ request()->routeIs('tenants.properties*') ? 'font-medium' : '' }}">Unit Details</span>
                         </a>
                     </li>
                     <li>
-                        <a href="{{ route('tenants.smartdevices') }}" class="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors {{ request()->routeIs('tenants.smartdevices*') ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : '' }}">
+                        <a href="{{ route('tenants.propAssets') }}" class="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors {{ request()->routeIs('tenants.propAssets*') ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : '' }}">
                             <i class="fas fa-mobile-alt w-5"></i>
-                            <span class="{{ request()->routeIs('tenants.smartdevices*') ? 'font-medium' : '' }}">Smart Devices</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ route('tenants.tenants') }}" class="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors {{ request()->routeIs('tenants.tenants*') ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : '' }}">
-                            <i class="fas fa-users w-5"></i>
-                            <span class="{{ request()->routeIs('tenants.tenants*') ? 'font-medium' : '' }}">Tenants</span>
+                            <span class="{{ request()->routeIs('tenants.propAssets*') ? 'font-medium' : '' }}">Smart Controls</span>
                         </a>
                     </li>
                     <li>
                         <a href="{{ route('tenants.maintenance') }}" class="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors {{ request()->routeIs('tenants.maintenance*') ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : '' }}">
                             <i class="fas fa-wrench w-5"></i>
-                            <span class="{{ request()->routeIs('tenants.maintenance*') ? 'font-medium' : '' }}">Maintenance</span>
+                            <span class="{{ request()->routeIs('tenants.maintenance*') ? 'font-medium' : '' }}">Service Requests</span>
                         </a>
                     </li>
+                    
                     <li>
                         <a href="{{ route('tenants.analytics') }}" class="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors {{ request()->routeIs('tenants.analytics*') ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : '' }}">
                             <i class="fas fa-chart-bar w-5"></i>
-                            <span class="{{ request()->routeIs('tenants.analytics*') ? 'font-medium' : '' }}">Analytics</span>
+                            <span class="{{ request()->routeIs('tenants.analytics*') ? 'font-medium' : '' }}">Reports</span>
                         </a>
                     </li>
                 </ul>

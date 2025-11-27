@@ -13,13 +13,13 @@ return new class extends Migration
     {
         Schema::create('leases', function (Blueprint $table) {
             $table->id('lease_id');
-            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('user_id'); // tenant
             $table->unsignedBigInteger('prop_id');
             $table->date('start_date');
             $table->date('end_date');
             $table->decimal('rent_amount');
             $table->decimal('deposit_amount');            
-            $table->enum('status', ['active', 'terminated', 'expired', 'pending', 'inactive'])->default('pending'); 
+            $table->enum('status', ['approved', 'terminated', 'activate', 'pending', 'inactive'])->default('pending'); 
             
             $table->foreign('user_id')->references('user_id')->on('users')->cascadeOnUpdate()->cascadeOnDelete();
             $table->foreign('prop_id')->references('prop_id')->on('properties')->cascadeOnUpdate()->cascadeOnDelete();
