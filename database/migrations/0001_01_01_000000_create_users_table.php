@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('last_name');
             $table->string('address');
             $table->string('phone_num');
+            $table->string('position')->nullable();
             $table->string('email')->unique();
             $table->enum('role', ['admin', 'landlord', 'tenants','staff','guest'])->default('guest');
             $table->string('password');

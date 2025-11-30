@@ -9,9 +9,11 @@ use App\Models\Payment;
 use App\Models\Invoices;
 use Illuminate\Support\Facades\Auth;    
 use App\Models\Leases;
+use App\Models\MaintenanceRequest;
 use App\Models\SmartDevice;
 use Illuminate\Support\Facades\Log;
 use App\Models\PropertyUnits;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class TenantsController extends Controller
@@ -30,12 +32,91 @@ class TenantsController extends Controller
     {
         return view('tenants.reports');
     }
-    
+    //for the maintenance
     public function maintenance()
     {
-        return view('tenants.maintenance');
+        $tenantId = Auth::id();
+        
+        $userUnits = PropertyUnits::whereHas('leases', function($query) use ($tenantId) {
+                $query->where('user_id', $tenantId)
+                    ->where('status', 'active');
+            })
+            ->with('property')
+            ->get();
+
+        // Get the current tenant's maintenance requests
+        $maintenanceRequests = MaintenanceRequest::where('user_id', $tenantId)
+            ->with(['unit.property', 'assignedStaff'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Get staff members with their positions
+        $staffMembers = User::where('role', 'staff')
+            ->where('status', 'active')
+            ->select('user_id', 'first_name', 'last_name', 'position')
+            ->orderBy('first_name')
+            ->get();
+
+        return view('tenants.maintenance', compact('userUnits', 'maintenanceRequests', 'staffMembers'));
     }
-    
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:150',
+            'description' => 'required|string',
+            'unit_id' => 'required|exists:property_units,unit_id',
+            'assigned_staff_id' => 'nullable|exists:users,user_id',
+        ]);
+
+        try {
+            $maintenanceRequest = new MaintenanceRequest();
+            $autoPriority = $maintenanceRequest->determinePriority(
+                $validated['title'], 
+                $validated['description']
+            );
+
+            $maintenanceRequest = MaintenanceRequest::create([
+                'user_id' => Auth::id(),
+                'unit_id' => $validated['unit_id'],
+                'title' => $validated['title'],
+                'description' => $validated['description'],
+                'priority' => $autoPriority,
+                'assigned_staff_id' => $validated['assigned_staff_id'] ?? null,
+                'status' => 'pending',
+                'requested_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Maintenance request submitted successfully!',
+                'request_id' => $maintenanceRequest->request_id,
+                'auto_priority' => $autoPriority,
+                'assigned_staff' => $validated['assigned_staff_id'] ? 'Manually assigned' : 'Auto-assigned'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to submit maintenance request: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    public function getStaffMembers()
+    {
+        $staff = User::where('role', 'staff')
+                    ->where('status', 'active')
+                    ->select('user_id', 'first_name', 'last_name')
+                    ->get()
+                    ->map(function($user) {
+                        return [
+                            'id' => $user->user_id,
+                            'name' => $user->first_name . ' ' . $user->last_name
+                        ];
+                    });
+
+        return response()->json($staff);
+    }
+    // for the smart devices
     public function propAssets()
     {
         $activeLeases = Leases::where('user_id', Auth::id())

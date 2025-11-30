@@ -2,15 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class MaintenanceRequest extends Model
 {
-    use HasFactory;
-    
     protected $table = 'maintenance_rqst';
-    public $primaryKey = 'request_id';
+    protected $primaryKey = 'request_id';
+
     protected $fillable = [
         'user_id',
         'unit_id',
@@ -21,71 +19,134 @@ class MaintenanceRequest extends Model
         'assigned_staff_id',
         'requested_at',
         'approved_at',
-        'completed_at',
+        'completed_at'
     ];
 
-    protected $casts = [
-        'requested_at' => 'datetime',
-        'approved_at' => 'datetime',
-        'completed_at' => 'datetime',
-    ];
-
-    // Relationships - Fixed to match your actual database structure
-    public function tenant()
+    // Relationships
+    public function user()
     {
-        return $this->belongsTo(User::class, 'user_id'); // Changed from tenant_id to user_id
+        return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 
     public function unit()
     {
-        return $this->belongsTo(PropertyUnits::class, 'unit_id');
+        return $this->belongsTo(PropertyUnits::class, 'unit_id', 'unit_id');
     }
 
-    public function property()
+    public function assignedStaff()
     {
-        return $this->hasOneThrough(
-            Property::class,
-            PropertyUnits::class,
-            'unit_id', // Foreign key on PropertyUnits table
-            'property_id', // Foreign key on Property table
-            'unit_id', // Local key on MaintenanceRequest table
-            'property_id' // Local key on PropertyUnits table
-        );
+        return $this->belongsTo(User::class, 'assigned_staff_id', 'user_id');
     }
 
-    public function assignedTechnician()
+    /**
+     * Automatically determine priority based on title and description
+     */
+    public function determinePriority($title, $description)
     {
-        return $this->belongsTo(User::class, 'assigned_staff_id'); // Changed from assigned_to to assigned_staff_id
-    }
+        $content = strtolower($title . ' ' . $description);
+        
+        // Emergency keywords - urgent
+        $emergencyKeywords = [
+            'fire', 'flood', 'flooding', 'gas leak', 'carbon monoxide', 'electrical fire',
+            'sparking', 'smoke', 'no heat', 'no water', 'broken window', 'break in',
+            'lock broken', 'door broken', 'security breach', 'sewage', 'overflow',
+            'burst pipe', 'electrical hazard', 'sparking outlet', 'water pouring'
+        ];
 
-    // Scopes
-    public function scopePending($query)
-    {
-        return $query->where('status', 'PENDING');
-    }
+        // High priority keywords - urgent but not emergency
+        $highPriorityKeywords = [
+            'leak', 'leaking', 'water damage', 'no ac', 'no heat', 'hot water',
+            'toilet not working', 'clogged', 'overflowing', 'electrical issue',
+            'power outage', 'outlet not working', 'window broken', 'lock not working',
+            'refrigerator not working', 'oven not working', 'fridge broken'
+        ];
 
-    public function scopeInProgress($query)
-    {
-        return $query->where('status', 'IN_PROGRESS');
-    }
+        // Medium priority keywords - important but can wait
+        $mediumPriorityKeywords = [
+            'dripping', 'slow drain', 'light not working', 'bulb replacement',
+            'painting', 'carpet cleaning', 'minor repair', 'squeaky door',
+            'loose handle', 'cabinet repair', 'countertop', 'flooring'
+        ];
 
-    public function scopeCompleted($query)
-    {
-        return $query->where('status', 'COMPLETED');
-    }
+        // Low priority keywords - cosmetic or minor issues
+        $lowPriorityKeywords = [
+            'touch up', 'cosmetic', 'paint chip', 'small crack', 'minor scratch',
+            'cleaning', 'dust', 'landscaping', 'curb appeal', 'decorative'
+        ];
 
-    public function scopeHighPriority($query)
-    {
-        return $query->where('priority', 'HIGH');
-    }
-
-    // Methods
-    public function updateStatus($status, $notes = null, $changedBy = null)
-    {
-        $this->update(['status' => $status]);
-
-        if ($status === 'COMPLETED') {
-            $this->update(['completed_at' => now()]);
+        // Check for emergency issues first
+        foreach ($emergencyKeywords as $keyword) {
+            if (str_contains($content, $keyword)) {
+                return 'urgent';
+            }
         }
+
+        // Check for high priority issues
+        foreach ($highPriorityKeywords as $keyword) {
+            if (str_contains($content, $keyword)) {
+                return 'high';
+            }
+        }
+
+        // Check for medium priority issues
+        foreach ($mediumPriorityKeywords as $keyword) {
+            if (str_contains($content, $keyword)) {
+                return 'medium';
+            }
+        }
+
+        // Check for low priority issues
+        foreach ($lowPriorityKeywords as $keyword) {
+            if (str_contains($content, $keyword)) {
+                return 'low';
+            }
+        }
+
+        // Default to medium priority if no keywords match
+        return 'medium';
+    }
+    public function isEmergencyRequest()
+    {
+        $content = strtolower($this->title . ' ' . $this->description);
+        
+        $emergencyKeywords = [
+            'fire', 'flood', 'gas leak', 'carbon monoxide', 'electrical fire',
+            'sparking', 'smoke', 'break in', 'security breach', 'burst pipe'
+        ];
+
+        foreach ($emergencyKeywords as $keyword) {
+            if (str_contains($content, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Get priority color for UI
+     */
+    public function getPriorityColorAttribute()
+    {
+        return match($this->priority) {
+            'urgent' => 'red',
+            'high' => 'orange',
+            'medium' => 'yellow',
+            'low' => 'green',
+            default => 'gray'
+        };
+    }
+    /**
+     * Get priority badge class for UI
+     */
+    public function getPriorityBadgeClassAttribute()
+    {
+        return match($this->priority) {
+            'urgent' => 'bg-red-100 text-red-800',
+            'high' => 'bg-orange-100 text-orange-800',
+            'medium' => 'bg-yellow-100 text-yellow-800',
+            'low' => 'bg-green-100 text-green-800',
+            default => 'bg-gray-100 text-gray-800'
+        };
     }
 }

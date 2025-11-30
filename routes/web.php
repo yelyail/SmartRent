@@ -168,14 +168,17 @@ Route::middleware(['auth', 'role:tenants'])->prefix('tenants')->name('tenants.')
     Route::post('/smart-devices/{id}/toggle', [TenantsController::class, 'toggleDevice'])->name('smartDevices.toggle');
  
     Route::get('/analytics', [TenantsController::class, 'analytics'])->name('analytics');
+
     Route::get('/maintenance', [TenantsController::class, 'maintenance'])->name('maintenance'); 
+    Route::post('/maintenance-requests', [TenantsController::class, 'store'])->name('maintenance-requests.store');
+    Route::get('/submit-maintenance-request', [TenantsController::class, 'submitMaintenanceRequest'])->name('submitMaintenanceRequest');
+
     Route::get('/properties', [TenantsController::class, 'properties'])->name('properties');    
     Route::get('/user-management', [TenantsController::class, 'userManagement'])->name('userManagement');
 
     Route::post('/leases/{leaseId}/pay-deposit', [PaymentController::class, 'payDeposit'])->name('tenants.leases.pay-deposit');
     Route::post('/leases/{leaseId}/pay-rent', [PaymentController::class, 'payRent'])->name('tenants.leases.pay-rent');
 
-    Route::get('/submit-maintenance-request', [TenantsController::class, 'submitMaintenanceRequest'])->name('submitMaintenanceRequest');
 
     Route::get('/payment-history', [TenantsController::class, 'paymentHistory'])->name('paymentHistory');
 
@@ -191,8 +194,9 @@ Route::middleware(['auth', 'role:tenants'])->prefix('tenants')->name('tenants.')
     Route::get('/api/payments/{paymentId}/invoice-pdf', [PaymentController::class, 'exportInvoicePdf'])->name('payments.invoice-pdf');
     Route::get('/api/payments/{paymentId}/invoice-details', [PaymentController::class, 'getInvoiceDetails'])->name('payments.invoice-details');
     Route::get('/api/payments/export-report-pdf', [PaymentController::class, 'exportPaymentReportPdf'])->name('payments.export-report');
+    Route::get('/api/staff-members', [TenantsController::class, 'getStaffMembers'])->name('api.staff-members');
 
-     Route::get('/api/test-auth', function () {
+    Route::get('/api/test-auth', function () {
         return response()->json([
             'authenticated' => Auth::check(),
             'user_id' => Auth::id(),
