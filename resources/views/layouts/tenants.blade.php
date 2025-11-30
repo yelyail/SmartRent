@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'SmartRent - Property Management Dashboard')</title>
+    <title>@yield( '','SmartRent - Property Management Dashboard')</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
@@ -72,11 +72,14 @@
                 </ul>
             </nav>
 
-            <!-- Profile -->
-            <div class="p-4 border-t border-gray-200">
+             <!-- Profile Section -->
+            <div class="p-4 border-t border-gray-700">
                 <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                        <i class="fas fa-user text-gray-600"></i>
+                    <div class="relative">
+                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                            <i class="fas fa-user text-white text-sm"></i>
+                        </div>
+                        <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 border-2 border-gray-800 rounded-full"></div>
                     </div>
                     <div class="flex-1 min-w-0">
                         <p class="text-md font-semibold text-gray-900 truncate capitalize">
@@ -92,7 +95,30 @@
                         </p>
                         <p class="text-xs text-gray-400 truncate capitalize">{{ Auth::user()->role }}</p>
                     </div>
-                    <i class="fas fa-cog text-gray-400 ml-auto cursor-pointer hover:text-gray-600 transition-colors"></i>
+                    <div class="relative group">
+                        <button class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors duration-200 rounded-lg hover:bg-blue-500">
+                            <i class="fas fa-ellipsis-v text-sm"></i>
+                        </button>
+                        <!-- Dropdown Menu -->
+                        <div class="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                            <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                <i class="fas fa-user-edit mr-3 text-xs"></i>
+                                Edit Profile
+                            </a>
+                            <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                <i class="fas fa-cog mr-3 text-xs"></i>
+                                Settings
+                            </a>
+                            <div class="border-t border-gray-200 my-1"></div>
+                            <form method="POST" action="{{ route('logout') }}">
+                                @csrf
+                                <button type="submit" class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
+                                    <i class="fas fa-sign-out-alt mr-3 text-xs"></i>
+                                    Logout
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

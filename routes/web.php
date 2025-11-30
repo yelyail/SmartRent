@@ -35,7 +35,6 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         Route::get('/bill', [AdminController::class, 'bill'])->name('admins.bill');
         Route::get('/analytics', [AdminController::class, 'analytics'])->name('admins.analytics');
         Route::get('/maintenance', [AdminController::class, 'maintenance'])->name('admins.maintenance');
-        Route::get('/prop-assets', [AdminController::class, 'propAssets'])->name('admins.propAssets');
         Route::get('/user-management', [AdminController::class, 'userManagement'])->name('admins.userManagement');
         Route::get('/properties', [AdminController::class, 'properties'])->name('admins.properties');
         Route::get('/payment', [AdminController::class, 'payment'])->name('admins.payment');
@@ -43,6 +42,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         // AJAX routes for user management
         Route::get('/users/stats', [AdminController::class, 'getUserStats'])->name('admin.users.stats');
         Route::get('/kyc/pending', [AdminController::class, 'getPendingKyc'])->name('admin.kyc.pending');
+        
+        Route::get('/properties/{id}', [AdminController::class, 'getProperty'])->name('properties.details');
 
         // User Management Routes
         Route::prefix('users')->name('admin.users.')->group(function () {

@@ -1,7 +1,6 @@
 @extends('layouts.landlord')
 
 @section('title', 'Payments & Invoices_landlord - SmartRent')
-@section('page-title', 'Payments & Invoices')
 @section('page-description', 'Manage payments, invoices, and billing records')
 
 @section('header-actions')

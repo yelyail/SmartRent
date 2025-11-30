@@ -1,7 +1,6 @@
 @extends('layouts.landlord')
 
 @section('title', 'User Management - SmartRent')
-@section('page-title', 'Tenants')
 @section('page-description', 'Manage tenant information, leases, and communications.')
 
 @section('content')
@@ -152,8 +151,8 @@
                             <div class="flex items-center space-x-2">
                                 <i class="fas fa-calendar text-gray-400"></i>
                                 <div>
-                                    <p class="font-medium text-gray-900">{{ $lease->start_date->format('M d, Y') }}</p>
-                                    <p class="text-sm text-gray-500">to {{ $lease->end_date->format('M d, Y') }}</p>
+                                    <p class="font-medium text-gray-900">{{ \Carbon\Carbon::parse($lease->start_date)->format('M d, Y') }}</p>
+                                    <p class="text-sm text-gray-500">to {{ \Carbon\Carbon::parse($lease->end_date)->format('M d, Y') }}</p>
                                 </div>
                             </div>
                         </td>
@@ -365,28 +364,21 @@ let currentKycData = null;
 // Open tenant details modal with better debugging
 function openTenantDetails(userId) {
     currentTenantId = userId;
-    console.log('Opening tenant details for user ID:', userId);
     
     fetch(`/landlord/tenants/${userId}/details`)
         .then(response => {
-            console.log('Response status:', response.status);
             return response.json();
         })
         .then(data => {
-            console.log('Full API Response:', data);
             
             if (data.success) {
-                console.log('Tenant data loaded successfully');
-                console.log('KYC data from API:', data.kyc);
                 currentKycData = data.kyc;
                 populateTenantDetails(data.tenant, data.kyc);
             } else {
-                console.error('API returned error:', data.message);
                 alert('Failed to load tenant details: ' + (data.message || 'Unknown error'));
             }
         })
         .catch(error => {
-            console.error('Fetch error:', error);
             alert('An error occurred while loading tenant details.');
         });
 }
@@ -426,11 +418,6 @@ function populateKYCDocuments(kyc) {
     const kycStatusBadge = document.getElementById('kycStatusBadge');
     const kycActions = document.getElementById('kycActions');
     
-    console.log('=== KYC DEBUG INFO ===');
-    console.log('KYC data received:', kyc);
-    console.log('KYC Status Badge element:', kycStatusBadge);
-    console.log('KYC Actions element:', kycActions);
-    
     // Check if elements exist
     if (!kycStatusBadge) {
         console.error('KYC Status Badge element not found!');
@@ -442,12 +429,10 @@ function populateKYCDocuments(kyc) {
     
     // Check if kyc exists and has data
     const hasKycData = kyc && (kyc.doc_path || kyc.proof_of_income || kyc.status);
-    console.log('Has KYC data:', hasKycData);
     
     if (hasKycData) {
         // KYC Status
         const status = kyc.status || 'pending';
-        console.log('Setting KYC status to:', status);
         
         kycStatusBadge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
         kycStatusBadge.className = `ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -527,11 +512,8 @@ function populateKYCDocuments(kyc) {
         } else {
             kycActions.classList.add('hidden');
         }
-        
-        console.log('KYC status badge updated successfully');
     } else {
         // No KYC data found
-        console.log('No KYC data found, setting to "Not Submitted"');
         kycStatusBadge.textContent = 'Not Submitted';
         kycStatusBadge.className = 'ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800';
         kycStatusBadge.style.display = 'inline-flex';
@@ -674,7 +656,6 @@ function updateKYCStatus(status) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         alert('An error occurred while updating KYC status.');
     });
 }
@@ -734,7 +715,6 @@ function approveLease(leaseId) {
             }
         })
         .catch(error => {
-            console.error('Error:', error);
             alert('An error occurred while approving the lease.');
         });
     }
@@ -758,7 +738,6 @@ function terminateLease(leaseId) {
             }
         })
         .catch(error => {
-            console.error('Error:', error);
             alert('An error occurred while terminating the lease.');
         });
     }

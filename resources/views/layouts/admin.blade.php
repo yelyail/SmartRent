@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'SmartRent - Property Management Dashboard')</title>
+    <title>@yield( '','SmartRent - Property Management Dashboard')</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Vite compiled CSS -->
@@ -58,17 +58,6 @@
                             </a>
                         </li>
                         <li>
-                            <a href="{{ route('admins.propAssets') }}" class="flex items-center space-x-3 px-4 py-3 text-gray-400 hover:bg-blue-500 hover:text-white rounded-xl transition-all duration-200 group {{ request()->routeIs('admins.propAssets*') ? 'bg-blue-600 text-white shadow-lg' : '' }}">
-                                <div class="w-6 h-6 flex items-center justify-center">
-                                    <i class="fas fa-mobile-alt text-sm {{ request()->routeIs('admins.propAssets*') ? 'text-white' : 'text-gray-400 group-hover:text-white' }}"></i>
-                                </div>
-                                <span class="font-medium">Smart Devices</span>
-                                @if(request()->routeIs('admins.propAssets*'))
-                                <div class="ml-auto w-2 h-2 bg-white rounded-full"></div>
-                                @endif
-                            </a>
-                        </li>
-                        <li>
                             <a href="{{ route('admins.userManagement') }}" class="flex items-center space-x-3 px-4 py-3 text-gray-400 hover:bg-blue-500 hover:text-white rounded-xl transition-all duration-200 group {{ request()->routeIs('admins.userManagement*') ? 'bg-blue-600 text-white shadow-lg' : '' }}">
                                 <div class="w-6 h-6 flex items-center justify-center">
                                     <i class="fas fa-users text-sm {{ request()->routeIs('admins.userManagement*') ? 'text-white' : 'text-gray-400 group-hover:text-white' }}"></i>
@@ -103,29 +92,6 @@
                         </li>
                     </ul>
                 </div>
-
-                <!-- Support Section -->
-                <div class="mt-8 px-3">
-                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Support</p>
-                    <ul class="space-y-1">
-                        <li>
-                            <a href="#" class="flex items-center space-x-3 px-4 py-3 text-gray-400 hover:bg-blue-500 hover:text-white rounded-xl transition-all duration-200 group">
-                                <div class="w-6 h-6 flex items-center justify-center">
-                                    <i class="fas fa-question-circle text-sm text-gray-400 group-hover:text-white"></i>
-                                </div>
-                                <span class="font-medium">Help & Support</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#" class="flex items-center space-x-3 px-4 py-3 text-gray-400 hover:bg-blue-500 hover:text-white rounded-xl transition-all duration-200 group">
-                                <div class="w-6 h-6 flex items-center justify-center">
-                                    <i class="fas fa-cog text-sm text-gray-400 group-hover:text-white"></i>
-                                </div>
-                                <span class="font-medium">Settings</span>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
             </nav>
 
             <!-- Profile Section -->
@@ -155,19 +121,20 @@
                         <button class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors duration-200 rounded-lg hover:bg-blue-500">
                             <i class="fas fa-ellipsis-v text-sm"></i>
                         </button>
-                        <div class="py-1">
-                            <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-400 hover:bg-gray-600 hover:text-white">
+                        <!-- Dropdown Menu -->
+                        <div class="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                            <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                 <i class="fas fa-user-edit mr-3 text-xs"></i>
                                 Edit Profile
                             </a>
-                            <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-400 hover:bg-gray-600 hover:text-white">
+                            <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                 <i class="fas fa-cog mr-3 text-xs"></i>
                                 Settings
                             </a>
-                            <div class="border-t border-gray-600 my-1"></div>
-                            <form method="POST" action="{{ route('logout') }}" class="inline">
+                            <div class="border-t border-gray-200 my-1"></div>
+                            <form method="POST" action="{{ route('logout') }}">
                                 @csrf
-                                <button type="submit" class="flex items-center w-full px-4 py-2 text-sm text-red-400 hover:bg-gray-600 hover:text-red-300">
+                                <button type="submit" class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
                                     <i class="fas fa-sign-out-alt mr-3 text-xs"></i>
                                     Logout
                                 </button>

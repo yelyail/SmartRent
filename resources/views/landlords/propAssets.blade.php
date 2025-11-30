@@ -1,7 +1,6 @@
 @extends('layouts.landlord')
 
 @section('title', 'Smart Devices - SmartRent')
-@section('page-title', 'Smart Devices')
 @section('page-description', 'Monitor and control smart devices across all your properties.')
 
 @section('content')

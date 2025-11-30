@@ -1,7 +1,6 @@
 @extends('layouts.landlord')
 
 @section('title', 'Dashboard_landlord - SmartRent')
-@section('page-title', 'Dashboard')
 @section('page-description', 'Welcome back! Here\'s what\'s happening with your properties.')
 
 @section('content')

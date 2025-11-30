@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Leases;
+use App\Models\Property;
 
 class PropertyUnits extends Model
 {
@@ -22,5 +24,15 @@ class PropertyUnits extends Model
     public function property()
     {
         return $this->belongsTo(Property::class, 'prop_id', 'prop_id');
+    }
+      public function leases()
+    {
+        return $this->hasMany(Leases::class, 'unit_id', 'unit_id');
+    }
+
+    public function activeLease()
+    {
+        return $this->hasOne(Leases::class, 'unit_id', 'unit_id')
+                    ->where('lease_status', 'active');
     }
 }

@@ -71,4 +71,10 @@ class Property extends Model
     {
         return $query->where('user_id', $userId);
     }
+    //for the occupancy
+     public function activeLeases()
+    {
+        return $this->hasManyThrough(Leases::class, PropertyUnits::class, 'prop_id', 'unit_id')
+                    ->where('lease_status', 'active');
+    }
 }

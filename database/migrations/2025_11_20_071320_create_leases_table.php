@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id('lease_id');
             $table->unsignedBigInteger('user_id'); // tenant
             $table->unsignedBigInteger('prop_id');
+            $table->unsignedBigInteger('unit_id');
             $table->date('start_date');
             $table->date('end_date');
             $table->decimal('rent_amount');
@@ -23,6 +24,8 @@ return new class extends Migration
             
             $table->foreign('user_id')->references('user_id')->on('users')->cascadeOnUpdate()->cascadeOnDelete();
             $table->foreign('prop_id')->references('prop_id')->on('properties')->cascadeOnUpdate()->cascadeOnDelete();
+            $table->foreign('unit_id')->references('unit_id')->on('property_units')->cascadeOnUpdate()->cascadeOnDelete();
+            
             $table->timestamps();
         });
     }

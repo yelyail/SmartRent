@@ -24,13 +24,7 @@ return new class extends Migration
             $table->text('description');      
             $table->enum('priority', ['low','medium','high','urgent'])->default('medium');
 
-            $table->enum('status', [
-                'pending',
-                'approved',
-                'in_progress',
-                'completed',
-                'cancelled'
-            ])->default('pending');
+            $table->enum('status', ['pending','approved','in_progress','completed','cancelled'])->default('pending');
 
             // Optional assignment fields
             $table->unsignedBigInteger('assigned_staff_id')->nullable();

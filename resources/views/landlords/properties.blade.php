@@ -1,7 +1,6 @@
 @extends('layouts.landlord')
 
 @section('title', 'Properties_landlord - SmartRent')
-@section('page-title', 'Properties')
 @section('page-description', 'Manage your rental properties and track their performance.')
 
 @section('header-actions')
@@ -45,7 +44,6 @@
                 <div class="flex items-start justify-between mb-3">
                     <h3 class="text-lg font-semibold text-gray-900">{{ $property->property_name }}</h3>
                     <button class="text-gray-400 hover:text-gray-600 property-menu" data-property-id="{{ $property->prop_id }}">
-                        <i class="fas fa-ellipsis-v"></i>
                     </button>
                 </div>
                 <div class="space-y-2 mb-4">
@@ -56,7 +54,7 @@
                     <div class="flex items-center justify-between text-sm text-gray-600">
                         <div class="flex items-center">
                             <i class="fas fa-building w-4 mr-2"></i>
-                            <span>{{ $property->units_count ?? 0 }} units</span>
+                            <span>{{ $property->available_units }} available</span>
                         </div>
                         <div class="flex items-center">
                             <i class="fas fa-users w-4 mr-2"></i>

@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Leases;
 use App\Models\KycDocument;
+use App\Models\MaintenanceRequest;
+use App\Models\User;
 
 class LandlordController extends Controller
 {
@@ -18,19 +20,130 @@ class LandlordController extends Controller
         return view('landlords.dashboard');
     }
 
-    public function bill()
-    {
-        return view('landlords.bill');
-    }
-
     public function analytics()
     {
         return view('landlords.analytics'); 
     }
+    //for the Maintenance Request
 
     public function maintenance()
     {
-        return view('landlords.maintenance');
+        // Get maintenance requests for landlord's properties
+        $maintenanceRequests = MaintenanceRequest::with(['tenant', 'unit.property', 'assignedTechnician'])
+            ->whereHas('unit.property', function($query) {
+                $query->where('user_id', Auth::id());
+            })
+            ->orderBy('requested_at', 'desc')
+            ->get();
+
+        // Calculate stats
+        $stats = [
+            'total' => $maintenanceRequests->count(),
+            'pending' => $maintenanceRequests->where('status', 'PENDING')->count(),
+            'in_progress' => $maintenanceRequests->where('status', 'IN_PROGRESS')->count(),
+            'high_priority' => $maintenanceRequests->where('priority', 'HIGH')->count(),
+        ];
+
+        // Get properties for the modal
+        $properties = Property::where('user_id', Auth::id())->get();
+
+        // Get technicians for assignment
+        $technicians = User::where('role', 'technician')->get();
+
+        return view('landlords.maintenance', compact('maintenanceRequests', 'stats', 'properties', 'technicians'));
+    }
+    public function storeMaintenanceRequest(Request $request)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'required|string',
+            'category' => 'required|in:HVAC,Plumbing,Electrical,Security,Appliances,General,Emergency',
+            'priority' => 'required|in:LOW,MEDIUM,HIGH,EMERGENCY',
+            'estimated_cost' => 'nullable|numeric|min:0',
+            'property_id' => 'required|exists:properties,id',
+            'unit_id' => 'nullable|exists:property_units,unit_id',
+            'tenant_name' => 'required|string|max:255',
+            'tenant_phone' => 'nullable|string',
+            'assigned_to' => 'nullable|exists:users,id',
+            'preferred_date' => 'nullable|date',
+            'special_instructions' => 'nullable|string',
+        ]);
+
+        // Find or create tenant
+        $tenant = User::firstOrCreate(
+            ['email' => $request->tenant_email ?? 'temp-' . time() . '@example.com'],
+            [
+                'name' => $validated['tenant_name'],
+                'phone' => $validated['tenant_phone'],
+                'password' => bcrypt('temp123'), // Temporary password
+                'role' => 'tenant'
+            ]
+        );
+
+        // Create maintenance request
+        $maintenanceRequest = MaintenanceRequest::create([
+            'property_id' => $validated['property_id'],
+            'unit_id' => $validated['unit_id'],
+            'tenant_id' => $tenant->id,
+            'title' => $validated['title'],
+            'description' => $validated['description'],
+            'category' => $validated['category'],
+            'priority' => $validated['priority'],
+            'estimated_cost' => $validated['estimated_cost'],
+            'assigned_to' => $validated['assigned_to'],
+            'preferred_date' => $validated['preferred_date'],
+            'special_instructions' => $validated['special_instructions'],
+            'status' => 'PENDING',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Maintenance request created successfully',
+            'data' => $maintenanceRequest
+        ]);
+    }
+
+    public function updateMaintenanceStatus(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'status' => 'required|in:PENDING,IN_PROGRESS,COMPLETED,CANCELLED',
+            'notes' => 'nullable|string',
+            'actual_cost' => 'nullable|numeric|min:0',
+        ]);
+
+        $maintenanceRequest = MaintenanceRequest::forLandlord(Auth::id())->findOrFail($id);
+
+        $maintenanceRequest->updateStatus(
+            $validated['status'],
+            $validated['notes'],
+            Auth::id()
+        );
+
+        if ($validated['actual_cost']) {
+            $maintenanceRequest->update(['actual_cost' => $validated['actual_cost']]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Maintenance request status updated successfully'
+        ]);
+    }
+
+    public function getMaintenanceDetails($id)
+    {
+        $maintenanceRequest = MaintenanceRequest::with([
+            'property',
+            'unit',
+            'tenant',
+            'assignedTechnician',
+            'photos',
+            'statusHistory.changedBy'
+        ])->forLandlord(Auth::id())->findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $maintenanceRequest
+        ]);
     }
 
     public function propAssets()
@@ -93,6 +206,7 @@ class LandlordController extends Controller
             ], 500);
         }
     }
+
     public function payment()
     {
         return view('landlords.payment');
@@ -100,16 +214,35 @@ class LandlordController extends Controller
 
     public function properties()
     {
-        $properties = Property::withCount([
+        $properties = Property::with([
+            'landlord',
+            'smartDevices'
+        ])->withCount([
             'units as units_count',
-            'units as occupied_units' => function($query) {
-                $query->where('status', 'occupied');
-            },
             'smartDevices as devices_count',
             'smartDevices as online_devices' => function($query) {
                 $query->where('connection_status', 'online');
             }
-        ])->where('user_id', Auth::id())->get();
+        ])
+        ->addSelect([
+            'occupied_units' => function ($query) {
+                $query->selectRaw('COUNT(DISTINCT property_units.unit_id)')
+                    ->from('property_units')
+                    ->leftJoin('leases', function ($join) {
+                        $join->on('property_units.unit_id', '=', 'leases.unit_id')
+                            ->where('leases.status', 'active');
+                    })
+                    ->whereColumn('property_units.prop_id', 'properties.prop_id')
+                    ->whereNotNull('leases.lease_id');
+            }
+        ])
+        ->where('user_id', Auth::id())
+        ->get()
+        ->map(function ($property) {
+            // Calculate available units (total units - occupied units)
+            $property->available_units = $property->units_count - $property->occupied_units;
+            return $property;
+        });
 
         return view('landlords.properties', compact('properties'));
     }
@@ -157,6 +290,11 @@ class LandlordController extends Controller
             }
             
             $lease->update(['status' => 'approved']);
+            
+            // Assign the unit to the tenant
+            if ($lease->unit_id) {
+                PropertyUnits::where('unit_id', $lease->unit_id)->update(['status' => 'occupied']);
+            }
             
             return response()->json([
                 'success' => true,

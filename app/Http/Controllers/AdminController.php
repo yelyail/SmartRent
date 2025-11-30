@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\KycDocument;
 use App\Enums\UserRole;
+use App\Models\Property;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class AdminController extends Controller
@@ -30,11 +32,49 @@ class AdminController extends Controller
         return view('admins.maintenance');
     }
     
-    public function propAssets()
-    {
-        return view('admins.propAssets');
-    }
     
+    public function getProperty($id)
+{
+    try {
+        Log::info('Fetching property details for ID: ' . $id);
+        
+        $property = Property::with([
+            'landlord', 
+            'units', 
+            'smartDevices'
+        ])
+        ->withCount([
+            'units as units_count',
+            'units as occupied_units' => function($query) {
+                $query->where('status', 'occupied');
+            }
+        ])
+        ->find($id); // Use find() instead of findOrFail() to handle missing properties gracefully
+
+        if (!$property) {
+            Log::warning('Property not found with ID: ' . $id);
+            return response()->json([
+                'error' => 'Property not found',
+                'message' => 'The requested property does not exist.'
+            ], 404);
+        }
+
+        Log::info('Property found:', ['property_id' => $property->prop_id, 'name' => $property->property_name]);
+        
+        return response()->json($property);
+        
+    } catch (\Exception $e) {
+        Log::error('Error fetching property: ' . $e->getMessage(), [
+            'property_id' => $id,
+            'exception' => $e
+        ]);
+        
+        return response()->json([
+            'error' => 'Server error',
+            'message' => 'Unable to fetch property details.'
+        ], 500);
+    }
+}
     public function userManagement(Request $request)
     {
         // Get filter parameters
@@ -95,7 +135,20 @@ class AdminController extends Controller
     
     public function properties()
     {
-        return view('admins.properties');
+        $properties = Property::withCount([
+                'units as units_count',
+                'units as occupied_units' => function($query) {
+                    $query->where('status', 'occupied');
+                },
+                'smartDevices as devices_count',
+                'smartDevices as online_devices' => function($query) {
+                    $query->where('connection_status', 'online');
+                }
+            ])
+            ->with('landlord')
+            ->get();
+
+        return view('admins.properties', compact('properties'));
     }
     
     public function payment()

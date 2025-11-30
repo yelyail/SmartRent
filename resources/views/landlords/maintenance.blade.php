@@ -1,7 +1,6 @@
 @extends('layouts.landlord')
 
 @section('title', 'Maintenance_landlord - SmartRent')
-@section('page-title', 'Maintenance')
 @section('page-description', 'Track and manage maintenance requests across all properties.')
 
 @section('header-actions')
@@ -22,7 +21,7 @@
                 </div>
                 <div>
                     <p class="text-sm text-gray-600 mb-1">Total Requests</p>
-                    <p class="text-3xl font-bold text-gray-900">6</p>
+                    <p class="text-3xl font-bold text-gray-900">{{ $stats['total'] }}</p>
                 </div>                           
             </div>
         </div>
@@ -35,7 +34,7 @@
                 </div>
                 <div>
                     <p class="text-sm text-gray-600 mb-1">Pending</p>
-                    <p class="text-3xl font-bold text-gray-900">3</p>
+                    <p class="text-3xl font-bold text-gray-900">{{ $stats['pending'] }}</p>
                 </div>                            
             </div>
         </div>
@@ -48,7 +47,7 @@
                 </div>
                 <div>
                     <p class="text-sm text-gray-600 mb-1">In Progress</p>
-                    <p class="text-3xl font-bold text-gray-900">1</p>
+                    <p class="text-3xl font-bold text-gray-900">{{ $stats['in_progress'] }}</p>
                 </div>                           
             </div>
         </div>
@@ -61,7 +60,7 @@
                 </div>
                 <div>
                     <p class="text-sm text-gray-600 mb-1">High Priority</p>
-                    <p class="text-3xl font-bold text-gray-900">2</p>
+                    <p class="text-3xl font-bold text-gray-900">{{ $stats['high_priority'] }}</p>
                 </div>                          
             </div>
         </div>
@@ -80,7 +79,7 @@
                 <select class="border border-gray-300 rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                     <option>All Status</option>
                     <option>Pending</option>
-                    <option>On Progress</option>
+                    <option>In Progress</option>
                     <option>Completed</option>
                 </select>
                 <select class="border border-gray-300 rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
@@ -95,15 +94,21 @@
 
     <!-- Maintenance Requests Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- AC Unit Not Cooling -->
+        @foreach($maintenanceRequests as $request)
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div class="flex items-start justify-between mb-4">
                 <div class="flex space-x-2">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        HIGH
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                        @if($request->priority == 'HIGH') bg-red-100 text-red-800
+                        @elseif($request->priority == 'MEDIUM') bg-yellow-100 text-yellow-800
+                        @else bg-green-100 text-green-800 @endif">
+                        {{ $request->priority }}
                     </span>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                        PENDING
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                        @if($request->status == 'PENDING') bg-orange-100 text-orange-800
+                        @elseif($request->status == 'IN_PROGRESS') bg-blue-100 text-blue-800
+                        @else bg-green-100 text-green-800 @endif">
+                        {{ str_replace('_', ' ', $request->status) }}
                     </span>
                 </div>
                 <button class="text-gray-400 hover:text-gray-600 transition-colors">
@@ -111,181 +116,58 @@
                 </button>
             </div>
             
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">AC Unit Not Cooling</h3>
-            <p class="text-gray-600 text-sm mb-4">Air conditioning in master bedroom is running but not cooling effectively.</p>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ $request->title }}</h3>
+            <p class="text-gray-600 text-sm mb-4">{{ $request->description }}</p>
             
             <div class="space-y-3 mb-6">
                 <div class="flex items-center text-sm text-gray-600">
                     <i class="fas fa-home w-4 mr-3"></i>
-                    <span>Sunset Villa #12</span>
-                    <span class="ml-auto font-medium">HVAC</span>
+                    <span>
+                        @if($request->unit && $request->unit->property)
+                            {{ $request->unit->property->name }} - {{ $request->unit->unit_number }}
+                        @else
+                            Property not found
+                        @endif
+                    </span>
+                    <span class="ml-auto font-medium">Maintenance</span>
                 </div>
                 <div class="flex items-center text-sm text-gray-600">
                     <i class="fas fa-user w-4 mr-3"></i>
-                    <span>Sarah Johnson</span>
-                    <span class="ml-auto font-medium">$250</span>
+                    <span>{{ $request->tenant->name ?? 'Unknown Tenant' }}</span>
+                    <span class="ml-auto font-medium">-</span>
                 </div>
                 <div class="flex items-center text-sm text-gray-600">
                     <i class="fas fa-calendar w-4 mr-3"></i>
-                    <span>1/8/2024</span>
-                    <span class="ml-auto">Assigned to Mike Rodriguez</span>
+                    <span>{{ $request->requested_at ? $request->requested_at->format('n/j/Y') : 'No date' }}</span>
+                    <span class="ml-auto">
+                        @if($request->assignedTechnician)
+                            Assigned to {{ $request->assignedTechnician->name }}
+                        @else
+                            Not assigned
+                        @endif
+                    </span>
                 </div>
             </div>
             
             <div class="flex space-x-3">
-                <button class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2">
+                <button class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 update-status-btn" data-request-id="{{ $request->request_id }}">
                     <i class="fas fa-sync-alt text-sm"></i>
                     <span>Update Status</span>
                 </button>
-                <button class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                <button class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors view-details-btn" data-request-id="{{ $request->request_id }}">
                     View Details
                 </button>
             </div>
         </div>
-
-        <!-- Kitchen Sink Leak -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-start justify-between mb-4">
-                <div class="flex space-x-2">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        MEDIUM
-                    </span>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        IN PROGRESS
-                    </span>
-                </div>
-                <button class="text-gray-400 hover:text-gray-600 transition-colors">
-                    <i class="fas fa-ellipsis-v"></i>
-                </button>
-            </div>
-            
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">Kitchen Sink Leak</h3>
-            <p class="text-gray-600 text-sm mb-4">Water leak under kitchen sink, causing damage to cabinet floor.</p>
-            
-            <div class="space-y-3 mb-6">
-                <div class="flex items-center text-sm text-gray-600">
-                    <i class="fas fa-home w-4 mr-3"></i>
-                    <span>Downtown Loft #3</span>
-                    <span class="ml-auto font-medium">Plumbing</span>
-                </div>
-                <div class="flex items-center text-sm text-gray-600">
-                    <i class="fas fa-user w-4 mr-3"></i>
-                    <span>Michael Chen</span>
-                    <span class="ml-auto font-medium">$180</span>
-                </div>
-                <div class="flex items-center text-sm text-gray-600">
-                    <i class="fas fa-calendar w-4 mr-3"></i>
-                    <span>1/7/2024</span>
-                    <span class="ml-auto">Assigned to Tom Wilson</span>
-                </div>
-            </div>
-            
-            <div class="flex space-x-3">
-                <button class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2">
-                    <i class="fas fa-clock text-sm"></i>
-                    <span>Update Status</span>
-                </button>
-                <button class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
-                    View Details
-                </button>
-            </div>
+        @endforeach
+        
+        @if($maintenanceRequests->isEmpty())
+        <div class="col-span-2 text-center py-12">
+            <i class="fas fa-wrench text-4xl text-gray-300 mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No maintenance requests</h3>
+            <p class="text-gray-500">Maintenance requests from your tenants will appear here.</p>
         </div>
-
-        <!-- Front Door Lock Malfunction -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-start justify-between mb-4">
-                <div class="flex space-x-2">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        HIGH
-                    </span>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                        PENDING
-                    </span>
-                </div>
-                <button class="text-gray-400 hover:text-gray-600 transition-colors">
-                    <i class="fas fa-ellipsis-v"></i>
-                </button>
-            </div>
-            
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">Front Door Lock Malfunction</h3>
-            <p class="text-gray-600 text-sm mb-4">Smart lock not responding to key fob or mobile app.</p>
-            
-            <div class="space-y-3 mb-6">
-                <div class="flex items-center text-sm text-gray-600">
-                    <i class="fas fa-home w-4 mr-3"></i>
-                    <span>Garden Court #15</span>
-                    <span class="ml-auto font-medium">Security</span>
-                </div>
-                <div class="flex items-center text-sm text-gray-600">
-                    <i class="fas fa-user w-4 mr-3"></i>
-                    <span>Emily Rodriguez</span>
-                    <span class="ml-auto font-medium">$120</span>
-                </div>
-                <div class="flex items-center text-sm text-gray-600">
-                    <i class="fas fa-calendar w-4 mr-3"></i>
-                    <span>1/6/2024</span>
-                    <span class="ml-auto">Assigned to Lisa Chen</span>
-                </div>
-            </div>
-            
-            <div class="flex space-x-3">
-                <button class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2">
-                    <i class="fas fa-sync-alt text-sm"></i>
-                    <span>Update Status</span>
-                </button>
-                <button class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
-                    View Details
-                </button>
-            </div>
-        </div>
-
-        <!-- Light Fixture Replacement -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-start justify-between mb-4">
-                <div class="flex space-x-2">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        LOW
-                    </span>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        COMPLETED
-                    </span>
-                </div>
-                <button class="text-gray-400 hover:text-gray-600 transition-colors">
-                    <i class="fas fa-ellipsis-v"></i>
-                </button>
-            </div>
-            
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">Light Fixture Replacement</h3>
-            <p class="text-gray-600 text-sm mb-4">Bathroom light fixture flickering and needs replacement.</p>
-            
-            <div class="space-y-3 mb-6">
-                <div class="flex items-center text-sm text-gray-600">
-                    <i class="fas fa-home w-4 mr-3"></i>
-                    <span>Tech Hub #22</span>
-                    <span class="ml-auto font-medium">Electrical</span>
-                </div>
-                <div class="flex items-center text-sm text-gray-600">
-                    <i class="fas fa-user w-4 mr-3"></i>
-                    <span>David Thompson</span>
-                    <span class="ml-auto font-medium">$95</span>
-                </div>
-                <div class="flex items-center text-sm text-gray-600">
-                    <i class="fas fa-calendar w-4 mr-3"></i>
-                    <span>1/5/2024</span>
-                    <span class="ml-auto">Assigned to Lisa Chen</span>
-                </div>
-            </div>
-            
-            <div class="flex space-x-3">
-                <button class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2">
-                    <i class="fas fa-sync-alt text-sm"></i>
-                    <span>Update Status</span>
-                </button>
-                <button class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
-                    View Details
-                </button>
-            </div>
-        </div>
+        @endif
     </div>
 @endsection
 
@@ -310,7 +192,8 @@
         </div>
 
         <!-- Modal Body -->
-        <form id="maintenanceRequestForm" class="p-6">
+        <form id="maintenanceRequestForm" class="p-6" action="{{ route('landlord.maintenance.store') }}" method="POST">
+            @csrf
             <!-- Request Information -->
             <div class="mb-8">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -322,56 +205,28 @@
                         <label class="block text-sm font-medium text-gray-700 mb-2">
                             Request Title <span class="text-red-500">*</span>
                         </label>
-                        <input type="text" id="requestTitle" required 
+                        <input type="text" name="title" required 
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                placeholder="e.g., AC Unit Not Working">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Category <span class="text-red-500">*</span>
-                        </label>
-                        <select id="category" required 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <option value="">Select Category</option>
-                            <option value="HVAC">HVAC</option>
-                            <option value="Plumbing">Plumbing</option>
-                            <option value="Electrical">Electrical</option>
-                            <option value="Security">Security</option>
-                            <option value="Appliances">Appliances</option>
-                            <option value="General">General Maintenance</option>
-                            <option value="Emergency">Emergency</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
                             Priority Level <span class="text-red-500">*</span>
                         </label>
-                        <select id="priority" required 
+                        <select name="priority" required 
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             <option value="">Select Priority</option>
                             <option value="LOW">Low</option>
                             <option value="MEDIUM">Medium</option>
                             <option value="HIGH">High</option>
-                            <option value="EMERGENCY">Emergency</option>
                         </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Estimated Cost
-                        </label>
-                        <div class="relative">
-                            <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                            <input type="number" id="estimatedCost" min="0" step="0.01"
-                                   class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                   placeholder="0.00">
-                        </div>
                     </div>
                 </div>
                 <div class="mt-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         Description <span class="text-red-500">*</span>
                     </label>
-                    <textarea id="description" required rows="3"
+                    <textarea name="description" required rows="3"
                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                               placeholder="Provide detailed description of the issue..."></textarea>
                 </div>
@@ -388,78 +243,36 @@
                         <label class="block text-sm font-medium text-gray-700 mb-2">
                             Property <span class="text-red-500">*</span>
                         </label>
-                        <select id="property" required 
+                        <select name="property_id" required 
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             <option value="">Select Property</option>
-                            <option value="Sunset Villa">Sunset Villa</option>
-                            <option value="Downtown Loft">Downtown Loft</option>
-                            <option value="Garden Court">Garden Court</option>
-                            <option value="Tech Hub">Tech Hub</option>
-                            <option value="Riverside Apartments">Riverside Apartments</option>
+                            @foreach($properties as $property)
+                            <option value="{{ $property->property_id }}">{{ $property->name }}</option>
+                            @endforeach
                         </select>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Unit Number <span class="text-red-500">*</span>
+                            Unit <span class="text-red-500">*</span>
                         </label>
-                        <input type="text" id="unitNumber" required 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                               placeholder="e.g., #12, A-101">
+                        <select name="unit_id" required 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Select Unit</option>
+                            <!-- Units will be loaded via JavaScript based on selected property -->
+                        </select>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Tenant Name <span class="text-red-500">*</span>
-                        </label>
-                        <input type="text" id="tenantName" required 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                               placeholder="Enter tenant name">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Tenant Phone
-                        </label>
-                        <input type="tel" id="tenantPhone" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                               placeholder="(555) 123-4567">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Assignment Information -->
-            <div class="mb-8">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <i class="fas fa-user-cog text-blue-600 mr-2"></i>
-                    Assignment Information
-                </h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">
                             Assign to Technician
                         </label>
-                        <select id="assignedTo" 
+                        <select name="assigned_staff_id" 
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             <option value="">Select Technician</option>
-                            <option value="Mike Rodriguez">Mike Rodriguez</option>
-                            <option value="Tom Wilson">Tom Wilson</option>
-                            <option value="Lisa Chen">Lisa Chen</option>
-                            <option value="David Martinez">David Martinez</option>
+                            @foreach($technicians as $technician)
+                            <option value="{{ $technician->id }}">{{ $technician->name }}</option>
+                            @endforeach
                         </select>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Preferred Date
-                        </label>
-                        <input type="date" id="preferredDate" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    </div>
-                </div>
-                <div class="mt-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Special Instructions
-                    </label>
-                    <textarea id="specialInstructions" rows="2"
-                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              placeholder="Any special instructions for the technician..."></textarea>
                 </div>
             </div>
 
@@ -488,7 +301,8 @@
     const closeModalBtn = document.getElementById('closeModalBtn');
     const cancelBtn = document.getElementById('cancelBtn');
     const form = document.getElementById('maintenanceRequestForm');
-    const tenantPhoneInput = document.getElementById('tenantPhone');
+    const propertySelect = document.querySelector('select[name="property_id"]');
+    const unitSelect = document.querySelector('select[name="unit_id"]');
 
     // Open modal
     newRequestBtn.addEventListener('click', () => {
@@ -501,6 +315,7 @@
         modal.classList.add('hidden');
         document.body.style.overflow = 'auto';
         form.reset();
+        unitSelect.innerHTML = '<option value="">Select Unit</option>';
     }
 
     closeModalBtn.addEventListener('click', closeModal);
@@ -520,46 +335,27 @@
         }
     });
 
-    // Phone number formatting
-    tenantPhoneInput.addEventListener('input', function(e) {
-        let value = e.target.value.replace(/\D/g, '');
-        if (value.length >= 6) {
-            value = value.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
-        } else if (value.length >= 3) {
-            value = value.replace(/(\d{3})(\d{0,3})/, '($1) $2');
+    // Load units when property is selected
+    propertySelect.addEventListener('change', function() {
+        const propertyId = this.value;
+        unitSelect.innerHTML = '<option value="">Loading units...</option>';
+        
+        if (propertyId) {
+            fetch(`/landlord/properties/${propertyId}/units`)
+                .then(response => response.json())
+                .then(units => {
+                    unitSelect.innerHTML = '<option value="">Select Unit</option>';
+                    units.forEach(unit => {
+                        unitSelect.innerHTML += `<option value="${unit.unit_id}">${unit.unit_number}</option>`;
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading units:', error);
+                    unitSelect.innerHTML = '<option value="">Error loading units</option>';
+                });
+        } else {
+            unitSelect.innerHTML = '<option value="">Select Unit</option>';
         }
-        e.target.value = value;
-    });
-
-    // Form submission
-    form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        
-        // Collect form data
-        const formData = {
-            title: document.getElementById('requestTitle').value,
-            category: document.getElementById('category').value,
-            priority: document.getElementById('priority').value,
-            estimatedCost: document.getElementById('estimatedCost').value,
-            description: document.getElementById('description').value,
-            property: document.getElementById('property').value,
-            unitNumber: document.getElementById('unitNumber').value,
-            tenantName: document.getElementById('tenantName').value,
-            tenantPhone: document.getElementById('tenantPhone').value,
-            assignedTo: document.getElementById('assignedTo').value,
-            preferredDate: document.getElementById('preferredDate').value,
-            specialInstructions: document.getElementById('specialInstructions').value,
-            dateCreated: new Date().toISOString().split('T')[0],
-            status: 'PENDING'
-        };
-
-        console.log('New Maintenance Request:', formData);
-        
-        // Show success message
-        alert('Maintenance request created successfully!');
-        
-        // Close modal and reset form
-        closeModal();
     });
 </script>
 @endpush
