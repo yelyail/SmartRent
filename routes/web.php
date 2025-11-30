@@ -119,6 +119,7 @@ Route::middleware(['auth', 'role:landlord'])->prefix('landlord')->name('landlord
     Route::get('/payment', [LandlordController::class, 'payment'])->name('payment');
     Route::get('/prop-assets', [LandlordController::class, 'propAssets'])->name('propAssets');
     Route::get('/analytics', [LandlordController::class, 'analytics'])->name('analytics');
+    
     Route::get('/maintenance', [LandlordController::class, 'maintenance'])->name('maintenance');
     Route::get('/bills', [LandlordController::class, 'bills'])->name('bills');
     Route::get('/maintenance-requests', [LandlordController::class, 'maintenanceRequests'])->name('maintenanceRequests');
@@ -163,21 +164,19 @@ Route::middleware(['auth', 'role:landlord'])->prefix('landlord')->name('landlord
 //for the tenants
 Route::middleware(['auth', 'role:tenants'])->prefix('tenants')->name('tenants.')->group(function () {
     Route::get('/dashboard', [TenantsController::class, 'index'])->name('dashboard');
-    Route::get('/payment', [TenantsController::class, 'payment'])->name('payment');
-    Route::get('/prop-assets', [TenantsController::class, 'propAssets'])->name('propAssets');
-    Route::post('/smart-devices/{id}/toggle', [TenantsController::class, 'toggleDevice'])->name('smartDevices.toggle');
+    Route::get('/prop-assets', [TenantsController::class, 'propAssets'])->name('propAssets'); // smart devices
+    Route::post('/smart-devices/{id}/toggle', [TenantsController::class, 'toggleDevice'])->name('smartDevices.toggle'); // smart device toggle
  
-    Route::get('/analytics', [TenantsController::class, 'analytics'])->name('analytics');
+    Route::get('/analytics', [TenantsController::class, 'analytics'])->name('analytics'); // reports page
 
-    Route::get('/maintenance', [TenantsController::class, 'maintenance'])->name('maintenance'); 
-    Route::post('/maintenance-requests', [TenantsController::class, 'store'])->name('maintenance-requests.store');
-    Route::get('/submit-maintenance-request', [TenantsController::class, 'submitMaintenanceRequest'])->name('submitMaintenanceRequest');
+    Route::get('/maintenance', [TenantsController::class, 'maintenance'])->name('maintenance'); // Maintenance page
+    Route::post('/maintenance-requests', [TenantsController::class, 'store'])->name('maintenance-requests.store'); // Submit maintenance request
 
     Route::get('/properties', [TenantsController::class, 'properties'])->name('properties');    
     Route::get('/user-management', [TenantsController::class, 'userManagement'])->name('userManagement');
 
-    Route::post('/leases/{leaseId}/pay-deposit', [PaymentController::class, 'payDeposit'])->name('tenants.leases.pay-deposit');
-    Route::post('/leases/{leaseId}/pay-rent', [PaymentController::class, 'payRent'])->name('tenants.leases.pay-rent');
+    Route::post('/leases/{leaseId}/pay-deposit', [PaymentController::class, 'payDeposit'])->name('leases.pay-deposit');
+    Route::post('/leases/{leaseId}/pay-rent', [PaymentController::class, 'payRent'])->name('leases.pay-rent');
 
 
     Route::get('/payment-history', [TenantsController::class, 'paymentHistory'])->name('paymentHistory');
@@ -195,15 +194,6 @@ Route::middleware(['auth', 'role:tenants'])->prefix('tenants')->name('tenants.')
     Route::get('/api/payments/{paymentId}/invoice-details', [PaymentController::class, 'getInvoiceDetails'])->name('payments.invoice-details');
     Route::get('/api/payments/export-report-pdf', [PaymentController::class, 'exportPaymentReportPdf'])->name('payments.export-report');
     Route::get('/api/staff-members', [TenantsController::class, 'getStaffMembers'])->name('api.staff-members');
-
-    Route::get('/api/test-auth', function () {
-        return response()->json([
-            'authenticated' => Auth::check(),
-            'user_id' => Auth::id(),
-            'user' => Auth::user(),
-            'message' => 'This is a test API endpoint'
-        ]);
-    });
 });
 
 

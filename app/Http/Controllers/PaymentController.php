@@ -119,8 +119,6 @@ class PaymentController extends Controller
     // For rent payment
     public function payRent(Request $request, $leaseId)
     {
-        Log::info('=== PAY RENT START ===', ['leaseId' => $leaseId, 'user_id' => Auth::id()]);
-
         try {
             // Check if lease exists and is active
             $lease = Leases::where('user_id', Auth::id())

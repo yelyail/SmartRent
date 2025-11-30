@@ -130,7 +130,7 @@
                         <i class="fas fa-home w-4 mr-3"></i>
                         <span>
                             @if($request->unit && $request->unit->property)
-                                {{ $request->unit->property->property_name }} - {{ $request->unit->unit_name }} #{{ $request->unit->unit_num }}
+                                {{ $request->unit->property->property_name }} - {{ $request->unit->unit_number }}
                             @else
                                 Unit Not Available
                             @endif
@@ -299,135 +299,49 @@
 
 @push('scripts')
 <script>
-    // Search and Filter functionality
-    document.addEventListener('DOMContentLoaded', function() {
-        const searchInput = document.getElementById('searchInput');
-        const statusFilter = document.getElementById('statusFilter');
-        const priorityFilter = document.getElementById('priorityFilter');
-        const requestCards = document.querySelectorAll('.maintenance-request-card');
-        const newRequestEmptyBtn = document.getElementById('newRequestEmptyBtn');
-
-        // Filter requests function
-        function filterRequests() {
-            const searchTerm = searchInput.value.toLowerCase();
-            const statusValue = statusFilter.value;
-            const priorityValue = priorityFilter.value;
-
-            let visibleCount = 0;
-
-            requestCards.forEach(card => {
-                const searchText = card.getAttribute('data-search');
-                const status = card.getAttribute('data-status');
-                const priority = card.getAttribute('data-priority');
-
-                const matchesSearch = searchText.includes(searchTerm);
-                const matchesStatus = !statusValue || status === statusValue;
-                const matchesPriority = !priorityValue || priority === priorityValue;
-
-                if (matchesSearch && matchesStatus && matchesPriority) {
-                    card.style.display = 'block';
-                    visibleCount++;
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-
-            // Show empty state if no cards are visible
-            const emptyState = document.querySelector('.col-span-2.bg-white');
-            if (emptyState) {
-                if (visibleCount === 0 && requestCards.length > 0) {
-                    emptyState.style.display = 'block';
-                } else {
-                    emptyState.style.display = 'none';
-                }
-            }
-        }
-
-        // Event listeners for filters
-        if (searchInput) searchInput.addEventListener('input', filterRequests);
-        if (statusFilter) statusFilter.addEventListener('change', filterRequests);
-        if (priorityFilter) priorityFilter.addEventListener('change', filterRequests);
-
-        // Empty state button
-        if (newRequestEmptyBtn) {
-            newRequestEmptyBtn.addEventListener('click', () => {
-                const modal = document.getElementById('newRequestModal');
-                if (modal) {
-                    modal.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                }
-            });
-        }
-
-        // View details button functionality
-        document.querySelectorAll('.view-details-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const requestId = this.getAttribute('data-request-id');
-                // Implement view details functionality
-                alert('View details for request: ' + requestId);
-                // You can redirect to a details page or show a modal
-            });
-        });
-
-        // Update status button functionality
-        document.querySelectorAll('.update-status-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const requestId = this.getAttribute('data-request-id');
-                // Implement status update functionality
-                alert('Update status for request: ' + requestId);
-                // You can show a modal to update status
-            });
-        });
-
-        // Initialize filters on page load
-        filterRequests();
-    });
-
     // Modal functionality
     const modal = document.getElementById('newRequestModal');
     const newRequestBtn = document.getElementById('newRequestBtn');
     const closeModalBtn = document.getElementById('closeModalBtn');
     const cancelBtn = document.getElementById('cancelBtn');
     const form = document.getElementById('maintenanceRequestForm');
+    const newRequestEmptyBtn = document.getElementById('newRequestEmptyBtn');
 
     // Open modal
-    if (newRequestBtn) {
-        newRequestBtn.addEventListener('click', () => {
-            if (modal) {
-                modal.classList.remove('hidden');
-                document.body.style.overflow = 'hidden';
-            }
+    newRequestBtn.addEventListener('click', () => {
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    });
+
+    // Empty state button
+    if (newRequestEmptyBtn) {
+        newRequestEmptyBtn.addEventListener('click', () => {
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
         });
     }
 
     // Close modal functions
     function closeModal() {
-        if (modal) {
-            modal.classList.add('hidden');
-            document.body.style.overflow = 'auto';
-            if (form) form.reset();
-            
-            // Hide priority display
-            const priorityDisplay = document.getElementById('priorityDisplay');
-            if (priorityDisplay) priorityDisplay.classList.add('hidden');
-        }
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+        form.reset();
+        priorityDisplay.classList.add('hidden');
     }
 
-    if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
-    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+    closeModalBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
 
     // Close modal when clicking outside
-    if (modal) {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                closeModal();
-            }
-        });
-    }
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
 
     // Close modal with Escape key
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
             closeModal();
         }
     });
@@ -440,8 +354,6 @@
     const priorityDescription = document.getElementById('priorityDescription');
 
     function detectPriority() {
-        if (!titleInput || !descriptionInput || !priorityDisplay || !priorityBadge || !priorityDescription) return;
-
         const title = titleInput.value.toLowerCase();
         const description = descriptionInput.value.toLowerCase();
         const content = title + ' ' + description;
@@ -493,52 +405,50 @@
     if (descriptionInput) descriptionInput.addEventListener('input', detectPriority);
 
     // Form submission
-    if (form) {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            
-            // Show loading state
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i><span>Submitting...</span>';
-            submitBtn.disabled = true;
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        
+        // Show loading state
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i><span>Submitting...</span>';
+        submitBtn.disabled = true;
 
-            try {
-                const formData = new FormData(form);
+        try {
+            const formData = new FormData(form);
+            
+            const response = await fetch('{{ route("tenants.maintenance-requests.store") }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                },
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showNotification('Maintenance request submitted successfully!', 'success');
+                closeModal();
                 
-                const response = await fetch('{{ route("tenants.maintenance-requests.store") }}', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json',
-                    },
-                    body: formData
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    showNotification('Maintenance request submitted successfully!', 'success');
-                    closeModal();
-                    
-                    // Reload the page to show the new request
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1500);
-                } else {
-                    throw new Error(result.message || 'Failed to submit maintenance request');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                showNotification(error.message || 'An error occurred while submitting the request', 'error');
-            } finally {
-                // Reset button state
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
+                // Reload the page to show the new request
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                throw new Error(result.message || 'Failed to submit maintenance request');
             }
-        });
-    }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification(error.message || 'An error occurred while submitting the request', 'error');
+        } finally {
+            // Reset button state
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    });
 
     function showNotification(message, type = 'info') {
         // Create notification element
@@ -558,9 +468,7 @@
         
         // Remove notification after 5 seconds
         setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
+            notification.remove();
         }, 5000);
     }
 </script>

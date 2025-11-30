@@ -15,14 +15,166 @@ use Illuminate\Support\Facades\Log;
 use App\Models\PropertyUnits;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
-class TenantsController extends Controller
-{
+    class TenantsController extends Controller
+    {
     public function index()
     {
-        return view('tenants.dashboard');
+        $tenantId = Auth::id();
+        
+        // Get current active lease
+        $currentLease = Leases::where('user_id', $tenantId)
+            ->where('status', 'active')
+            ->with(['property', 'unit'])
+            ->first();
+
+        // Get maintenance statistics
+        $maintenanceStats = [
+            'total' => MaintenanceRequest::where('user_id', $tenantId)->count(),
+            'pending' => MaintenanceRequest::where('user_id', $tenantId)->where('status', 'pending')->count(),
+            'in_progress' => MaintenanceRequest::where('user_id', $tenantId)->where('status', 'in_progress')->count(),
+        ];
+
+        // Get device statistics (if you have smart devices)
+        $deviceStats = [
+            'total' => 0,
+            'online' => 0,
+        ];
+        
+        if ($currentLease) {
+            $devices = SmartDevice::where('prop_id', $currentLease->prop_id)->get();
+            $deviceStats['total'] = $devices->count();
+            $deviceStats['online'] = $devices->where('connection_status', 'online')->count();
+        }
+
+        // Rent status calculation
+        $rentStatus = $this->calculateRentStatus($currentLease);
+
+        // Recent activities (mix of payments, maintenance, etc.)
+        $recentActivities = $this->getRecentActivities($tenantId);
+
+        return view('tenants.dashboard', compact(
+            'currentLease',
+            'maintenanceStats',
+            'deviceStats',
+            'rentStatus',
+            'recentActivities'
+        ));
     }
-    
+
+    private function calculateRentStatus($currentLease)
+    {
+        if (!$currentLease) {
+            return [
+                'status' => 'No Lease',
+                'color' => 'bg-gray-500',
+                'textColor' => 'text-gray-900',
+                'dueDate' => 'N/A'
+            ];
+        }
+
+        $today = now();
+        $dueDate = \Carbon\Carbon::parse($currentLease->start_date)->addMonth()->startOfDay();
+        
+        // Check if rent is paid for current month (you'll need to implement this logic)
+        $isPaid = Payment::where('lease_id', $currentLease->lease_id)
+            ->where('transaction_type', 'rent')
+            ->whereMonth('payment_date', $today->month)
+            ->whereYear('payment_date', $today->year)
+            ->exists();
+
+        if ($isPaid) {
+            return [
+                'status' => 'Paid',
+                'color' => 'bg-green-500',
+                'textColor' => 'text-green-600',
+                'dueDate' => $dueDate->format('M j, Y')
+            ];
+        }
+
+        if ($today->gt($dueDate)) {
+            return [
+                'status' => 'Overdue',
+                'color' => 'bg-red-500',
+                'textColor' => 'text-red-600',
+                'dueDate' => $dueDate->format('M j, Y')
+            ];
+        }
+
+        return [
+            'status' => 'Due Soon',
+            'color' => 'bg-orange-500',
+            'textColor' => 'text-orange-600',
+            'dueDate' => $dueDate->format('M j, Y')
+        ];
+    }
+
+    private function getRecentActivities($tenantId)
+    {
+        $activities = [];
+        
+        // Get the tenant's lease IDs
+        $leaseIds = Leases::where('user_id', $tenantId)->pluck('lease_id');
+        
+        // Recent payments - query through leases
+        $recentPayments = Payment::whereIn('lease_id', $leaseIds)
+            ->with('lease.unit') 
+            ->orderBy('created_at', 'desc')
+            ->limit(3)
+            ->get();
+        
+        foreach ($recentPayments as $payment) {
+            $unitInfo = $payment->lease->unit ? $payment->lease->unit->unit_name . ' #' . $payment->lease->unit->unit_num : 'Unit';
+            
+            $activities[] = [
+                'type' => 'payment',
+                'title' => ucfirst($payment->payment_type) . ' Payment - '. ucfirst($payment->transaction_type),
+                'description' => $unitInfo . ' • ' . \Carbon\Carbon::parse($payment->payment_date)->format('F Y'),
+                'amount_paid' => '₱' . number_format($payment->amount_paid, 2),
+                'payment_date' => \Carbon\Carbon::parse($payment->payment_date)->format('M j, Y'),
+                'time' => $payment->created_at->diffForHumans(),
+                'icon' => 'fas fa-credit-card',
+                'color' => 'bg-green-100 text-green-600',
+                'status' => ucfirst($payment->billing->status),
+                'statusColor' => $payment->billing->status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+            ];
+        }
+        
+        // Recent maintenance requests
+        $recentMaintenance = MaintenanceRequest::where('user_id', $tenantId)
+            ->with('unit') // Load unit relationship
+            ->orderBy('created_at', 'desc')
+            ->limit(3)
+            ->get();
+        
+        foreach ($recentMaintenance as $request) {
+            $unitInfo = $request->unit ? $request->unit->unit_name . ' #' . $request->unit->unit_num : 'Unit';
+            
+            $activities[] = [
+                'type' => 'maintenance',
+                'title' => 'Maintenance: ' . $request->title,
+                'description' => $unitInfo . ' • ' . Str::limit($request->description, 40),
+                'time' => $request->created_at->diffForHumans(),
+                'icon' => 'fas fa-wrench',
+                'color' => $request->priority === 'urgent' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600',
+                'status' => ucfirst($request->status),
+                'statusColor' => match($request->status) {
+                    'completed' => 'bg-green-100 text-green-800',
+                    'in_progress' => 'bg-blue-100 text-blue-800',
+                    default => 'bg-orange-100 text-orange-800'
+                }
+            ];
+        }
+        
+        // Sort by timestamp and limit to 5 activities
+        usort($activities, function($a, $b) {
+            return strtotime($b['time']) - strtotime($a['time']);
+        });
+        
+        return array_slice($activities, 0, 5);
+    }
+        
     public function bill()
     {
         return view('tenants.bill');
@@ -181,11 +333,6 @@ class TenantsController extends Controller
         ]);
     }
     
-    public function payment()
-    {
-        return view('tenants.payment');
-    }
-    
     public function properties()
     {
         $properties = Property::withCount([
@@ -301,13 +448,4 @@ class TenantsController extends Controller
         return view('tenants.leases', compact('leases'));
     }
     
-    public function submitMaintenanceRequest()
-    {
-        return view('tenants.submitMaintenanceRequest');
-    }
-    
-    public function paymentHistory()
-    {
-        return view('tenants.paymentHistory');
-    }
 }
