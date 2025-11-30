@@ -21,6 +21,13 @@ class MaintenanceRequest extends Model
         'approved_at',
         'completed_at'
     ];
+     protected $casts = [
+        'requested_at' => 'datetime',
+        'assigned_at' => 'datetime',
+        'completed_at' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
 
     // Relationships
     public function user()

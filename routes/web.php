@@ -119,14 +119,14 @@ Route::middleware(['auth', 'role:landlord'])->prefix('landlord')->name('landlord
     Route::get('/payment', [LandlordController::class, 'payment'])->name('payment');
     Route::get('/prop-assets', [LandlordController::class, 'propAssets'])->name('propAssets');
     Route::get('/analytics', [LandlordController::class, 'analytics'])->name('analytics');
-    
+
     Route::get('/maintenance', [LandlordController::class, 'maintenance'])->name('maintenance');
     Route::get('/bills', [LandlordController::class, 'bills'])->name('bills');
     Route::get('/maintenance-requests', [LandlordController::class, 'maintenanceRequests'])->name('maintenanceRequests');
     Route::get('/user-management', [LandlordController::class, 'userManagement'])->name('userManagement');
-    
+    Route::get('/maintenance-requests/{id}/details', [LandlordController::class, 'getRequestDetails'])->name('maintenance-requests.details');
+
     //tenants
-    // Add these routes
     Route::post('/leases/{id}/approve', [LandlordController::class, 'approveLease'])->name('leases.approve');
     Route::post('/leases/{id}/terminate', [LandlordController::class, 'terminateLease'])->name('leases.terminate');
     

@@ -27,31 +27,26 @@ class LandlordController extends Controller
     //for the Maintenance Request
 
     public function maintenance()
-    {
-        // Get maintenance requests for landlord's properties
-        $maintenanceRequests = MaintenanceRequest::with(['tenant', 'unit.property', 'assignedTechnician'])
-            ->whereHas('unit.property', function($query) {
-                $query->where('user_id', Auth::id());
-            })
-            ->orderBy('requested_at', 'desc')
-            ->get();
+{
+    // Get maintenance requests for landlord's properties
+    $maintenanceRequests = MaintenanceRequest::with(['user', 'unit.property', 'assignedStaff'])
+        ->whereHas('unit.property', function($query) {
+            $query->where('user_id', Auth::id());
+        })
+        ->orderBy('created_at', 'desc')
+        ->get();
 
-        // Calculate stats
-        $stats = [
-            'total' => $maintenanceRequests->count(),
-            'pending' => $maintenanceRequests->where('status', 'PENDING')->count(),
-            'in_progress' => $maintenanceRequests->where('status', 'IN_PROGRESS')->count(),
-            'high_priority' => $maintenanceRequests->where('priority', 'HIGH')->count(),
-        ];
+    // Calculate stats
+    $stats = [
+        'total' => $maintenanceRequests->count(),
+        'pending' => $maintenanceRequests->where('status', 'pending')->count(),
+        'in_progress' => $maintenanceRequests->where('status', 'in_progress')->count(),
+        'high_priority' => $maintenanceRequests->where('priority', 'high')->count() + 
+                          $maintenanceRequests->where('priority', 'urgent')->count(),
+    ];
 
-        // Get properties for the modal
-        $properties = Property::where('user_id', Auth::id())->get();
-
-        // Get technicians for assignment
-        $technicians = User::where('role', 'technician')->get();
-
-        return view('landlords.maintenance', compact('maintenanceRequests', 'stats', 'properties', 'technicians'));
-    }
+    return view('landlords.maintenance', compact('maintenanceRequests', 'stats'));
+}
     public function storeMaintenanceRequest(Request $request)
     {
         $validated = $request->validate([
@@ -205,11 +200,6 @@ class LandlordController extends Controller
                 'message' => 'Error updating device status: ' . $e->getMessage()
             ], 500);
         }
-    }
-
-    public function payment()
-    {
-        return view('landlords.payment');
     }
 
     public function properties()
@@ -398,6 +388,46 @@ class LandlordController extends Controller
                 'success' => false,
                 'message' => 'Failed to update KYC status: ' . $e->getMessage()
             ], 500);
+        }
+    }
+    public function getRequestDetails($id)
+    {
+        try {
+            $request = MaintenanceRequest::with([
+                'unit.property',
+                'user',
+                'assignedStaff'
+            ])->findOrFail($id);
+
+            // Get the raw date values and parse them manually
+            $requestedAt = $request->getRawOriginal('requested_at') ?? $request->getRawOriginal('created_at');
+            $updatedAt = $request->getRawOriginal('updated_at');
+            $assignedAt = $request->getRawOriginal('created_at');
+            $completedAt = $request->getRawOriginal('completed_at');
+
+
+            return response()->json([
+                'request_id' => $request->request_id,
+                'title' => $request->title,
+                'description' => $request->description,
+                'status' => $request->status,
+                'priority' => $request->priority,
+                'property_name' => $request->unit->property->property_name ?? 'N/A',
+                'unit_name' => $request->unit->unit_name ?? 'N/A',
+                'unit_num' => $request->unit->unit_num ?? 'N/A',
+                'tenant_name' => $request->user->first_name . ' ' . $request->user->last_name,
+                'tenant_phone' => $request->user->phone_num ?? 'No contact number',
+                'requested_at' => $requestedAt ? \Carbon\Carbon::parse($requestedAt)->toISOString() : null,
+                'updated_at' => $updatedAt ? \Carbon\Carbon::parse($updatedAt)->toISOString() : null,
+                'assigned_staff' => $request->assignedStaff ? $request->assignedStaff->first_name . ' ' . $request->assignedStaff->last_name : null,
+                'staff_position' => $request->assignedStaff->position ?? null,
+                'assigned_date' => $assignedAt ? \Carbon\Carbon::parse($assignedAt)->toISOString() : null,
+                'completed_date' => $completedAt ? \Carbon\Carbon::parse($completedAt)->toISOString() : null,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error fetching maintenance request details: ' . $e->getMessage());
+            return response()->json(['error' => 'Request not found'], 404);
         }
     }
 }
