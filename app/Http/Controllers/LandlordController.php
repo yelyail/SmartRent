@@ -19,10 +19,6 @@ use App\Enums\UserRole;
 
 class LandlordController extends Controller
 {
-    public function index()
-    {
-        return view('landlords.dashboard');
-    }
 
     public function analytics()
     {
@@ -664,5 +660,244 @@ class LandlordController extends Controller
             Log::error('Error fetching maintenance request details: ' . $e->getMessage());
             return response()->json(['error' => 'Request not found'], 404);
         }
+    }
+
+    //dashboard
+     public function index()
+    {
+        $user = Auth::user();
+        
+        // Get landlord's properties
+        $properties = Property::where('user_id', $user->user_id)->get();
+        
+        if ($properties->isEmpty()) {
+            return $this->emptyDashboard($user);
+        }
+        
+        return $this->landlordDashboard($user);
+    }
+    
+    private function landlordDashboard($user)
+    {
+        // Get landlord's properties
+        $properties = Property::where('user_id', $user->user_id)->get();
+        
+        // Total Properties
+        $totalProperties = $properties->count();
+        
+        // Active Tenants
+        $totalTenants = User::whereHas('leases', function ($query) use ($user) {
+            $query->where('status', 'active')
+                ->where('start_date', '<=', now())
+                ->where('end_date', '>=', now())
+                ->whereHas('unit.property', function ($q) use ($user) {
+                    $q->where('user_id', $user->user_id);
+                });
+        })->count();
+        
+        // Smart Devices
+        $smartDevices = SmartDevice::whereHas('property', function ($query) use ($user) {
+            $query->where('user_id', $user->user_id);
+        })->count();
+        
+        // Monthly Revenue (last 30 days)
+        $monthlyRevenue = Payment::whereHas('lease.unit.property', function ($query) use ($user) {
+            $query->where('user_id', $user->user_id);
+        })
+        ->where('payment_date', '>=', Carbon::now()->subDays(30))
+        ->sum('amount_paid');
+        
+        // Revenue trend (compare last 30 days with previous 30 days)
+        $previousRevenue = Payment::whereHas('lease.unit.property', function ($query) use ($user) {
+            $query->where('user_id', $user->user_id);
+        })
+        ->whereBetween('payment_date', [Carbon::now()->subDays(60), Carbon::now()->subDays(31)])
+        ->sum('amount_paid');
+        
+        $revenueTrend = $previousRevenue > 0 ? 
+            round((($monthlyRevenue - $previousRevenue) / $previousRevenue) * 100, 1) : 
+            ($monthlyRevenue > 0 ? 100 : 0);
+        
+        // Property Overview Metrics
+        $totalUnits = 0;
+        $occupiedUnits = 0;
+        $availableUnits = 0;
+        
+        foreach ($properties as $property) {
+            $propertyUnits = $property->units()->count();
+            $totalUnits += $propertyUnits;
+            
+            $occupiedUnits += $property->units()->whereHas('leases', function ($query) {
+                $query->where('status', 'active')
+                    ->where('start_date', '<=', now())
+                    ->where('end_date', '>=', now());
+            })->count();
+        }
+        
+        $availableUnits = $totalUnits - $occupiedUnits;
+        $occupancyRate = $totalUnits > 0 ? round(($occupiedUnits / $totalUnits) * 100) : 0;
+        
+        // Active Maintenance Requests
+        $activeMaintenance = MaintenanceRequest::whereHas('unit.property', function ($query) use ($user) {
+            $query->where('user_id', $user->user_id);
+        })
+        ->whereIn('status', ['pending', 'in_progress'])
+        ->count();
+        
+        // Online Smart Devices
+        $onlineDevices = SmartDevice::whereHas('property', function ($query) use ($user) {
+            $query->where('user_id', $user->user_id);
+        })
+        ->where('connection_status', 'online')
+        ->count();
+        
+        $deviceOnlineRate = $smartDevices > 0 ? round(($onlineDevices / $smartDevices) * 100) : 0;
+        
+        // Recent Activities
+        $recentActivities = $this->getRecentActivities($user);
+        
+        // Monthly Revenue Chart Data
+        $revenueChartData = $this->getRevenueChartData($user);
+        
+        return view('landlords.dashboard', compact(
+            'totalProperties',
+            'totalTenants',
+            'smartDevices',
+            'monthlyRevenue',
+            'revenueTrend',
+            'totalUnits',
+            'occupiedUnits',
+            'availableUnits',
+            'occupancyRate',
+            'activeMaintenance',
+            'onlineDevices',
+            'deviceOnlineRate',
+            'recentActivities',
+            'revenueChartData'
+        ));
+    }
+    
+    private function getRecentActivities($user)
+    {
+        $activities = collect();
+        
+        // Get recent maintenance requests
+        $maintenanceRequests = MaintenanceRequest::with(['unit.property', 'user'])
+            ->whereHas('unit.property', function ($query) use ($user) {
+                $query->where('user_id', $user->user_id);
+            })
+            ->orderBy('created_at', 'desc')
+            ->limit(3)
+            ->get()
+            ->map(function ($request) {
+                return [
+                    'type' => 'maintenance',
+                    'icon' => 'exclamation',
+                    'iconColor' => 'yellow',
+                    'title' => $request->title,
+                    'description' => $request->unit ? $request->unit->property->property_name . ' - Unit ' . $request->unit->unit_num : 'Unknown Unit',
+                    'time' => $request->created_at->diffForHumans(),
+                    'priority' => $request->priority
+                ];
+            });
+        
+        // Get recent payments
+        $recentPayments = Payment::with(['lease.unit.property', 'lease.user'])
+            ->whereHas('lease.unit.property', function ($query) use ($user) {
+                $query->where('user_id', $user->user_id);
+            })
+            ->orderBy('payment_date', 'desc')
+            ->limit(2)
+            ->get()
+            ->map(function ($payment) {
+                return [
+                    'type' => 'payment',
+                    'icon' => 'check',
+                    'iconColor' => 'green',
+                    'title' => 'Rent Payment Received',
+                    'description' => $payment->lease->user->first_name . ' ' . $payment->lease->user->last_name . ' - ' . 
+                                   $payment->lease->unit->property->property_name,
+                    'time' => $payment->payment_date->diffForHumans(),
+                    'amount' => $payment->amount_paid
+                ];
+            });
+        
+        // Get recent smart device alerts (if any)
+        $deviceAlerts = SmartDevice::with(['property'])
+            ->whereHas('property', function ($query) use ($user) {
+                $query->where('user_id', $user->user_id);
+            })
+            ->where('connection_status', 'offline')
+            ->orderBy('updated_at', 'desc')
+            ->limit(2)
+            ->get()
+            ->map(function ($device) {
+                return [
+                    'type' => 'device',
+                    'icon' => 'exclamation-triangle',
+                    'iconColor' => 'red',
+                    'title' => 'Smart Device Offline',
+                    'description' => $device->property->property_name . ' - ' . $device->device_name,
+                    'time' => $device->updated_at->diffForHumans(),
+                    'device_type' => $device->device_type
+                ];
+            });
+        
+        // Merge and sort all activities by time
+        $activities = $maintenanceRequests->merge($recentPayments)->merge($deviceAlerts)
+            ->sortByDesc('time')
+            ->take(4);
+        
+        return $activities;
+    }
+    
+    private function getRevenueChartData($user)
+    {
+        // Get revenue for last 6 months
+        $months = [];
+        $revenues = [];
+        
+        for ($i = 5; $i >= 0; $i--) {
+            $month = Carbon::now()->subMonths($i);
+            $monthName = $month->format('M');
+            $months[] = $monthName;
+            
+            $revenue = Payment::whereHas('lease.unit.property', function ($query) use ($user) {
+                $query->where('user_id', $user->user_id);
+            })
+            ->whereYear('payment_date', $month->year)
+            ->whereMonth('payment_date', $month->month)
+            ->sum('amount_paid');
+            
+            $revenues[] = $revenue;
+        }
+        
+        return [
+            'labels' => $months,
+            'data' => $revenues
+        ];
+    }
+    
+    private function emptyDashboard($user)
+    {
+        return view('landlords.dashboard', [
+            'totalProperties' => 0,
+            'totalTenants' => 0,
+            'smartDevices' => 0,
+            'monthlyRevenue' => 0,
+            'revenueTrend' => 0,
+            'totalUnits' => 0,
+            'occupiedUnits' => 0,
+            'availableUnits' => 0,
+            'occupancyRate' => 0,
+            'activeMaintenance' => 0,
+            'onlineDevices' => 0,
+            'deviceOnlineRate' => 0,
+            'recentActivities' => collect(),
+            'revenueChartData' => [
+                'labels' => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                'data' => [0, 0, 0, 0, 0, 0]
+            ]
+        ]);
     }
 }
