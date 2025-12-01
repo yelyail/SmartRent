@@ -72,9 +72,30 @@ class Property extends Model
         return $query->where('user_id', $userId);
     }
     //for the occupancy
-     public function activeLeases()
+    public function activeLease()
     {
-        return $this->hasManyThrough(Leases::class, PropertyUnits::class, 'prop_id', 'unit_id')
-                    ->where('lease_status', 'active');
+        return $this->hasManyThrough(
+            Leases::class, 
+            PropertyUnits::class, 
+            'prop_id', // Foreign key on PropertyUnits table (points to Property)
+            'unit_id', // Foreign key on Leases table (points to PropertyUnits)
+            'prop_id', // Local key on Property table
+            'unit_id'  // Local key on PropertyUnits table
+        )->where('leases.status', 'active')
+        ->where('leases.start_date', '<=', now())
+        ->where('leases.end_date', '>=', now());
+    }
+    
+    // Get current tenant
+    public function currentTenant()
+    {
+        $activeLease = $this->activeLease;
+        return $activeLease ? $activeLease->user : null;
+    }
+    
+    // Check if unit is occupied
+    public function isOccupied()
+    {
+        return $this->activeLease()->exists();
     }
 }

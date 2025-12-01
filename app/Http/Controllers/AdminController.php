@@ -9,18 +9,15 @@ use App\Enums\UserRole;
 use App\Models\Property;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use App\Models\SmartDevice;
+use App\Models\Payment;
+use App\Models\MaintenanceRequest;
+use App\Models\PropertyUnits;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller
 {
-    public function index()
-    {
-        return view('admins.dashboard');
-    }
-    
-    public function bill()
-    {
-        return view('admins.bill');
-    }
     
     public function analytics()
     {
@@ -34,47 +31,47 @@ class AdminController extends Controller
     
     
     public function getProperty($id)
-{
-    try {
-        Log::info('Fetching property details for ID: ' . $id);
-        
-        $property = Property::with([
-            'landlord', 
-            'units', 
-            'smartDevices'
-        ])
-        ->withCount([
-            'units as units_count',
-            'units as occupied_units' => function($query) {
-                $query->where('status', 'occupied');
+    {
+        try {
+            Log::info('Fetching property details for ID: ' . $id);
+            
+            $property = Property::with([
+                'landlord', 
+                'units', 
+                'smartDevices'
+            ])
+            ->withCount([
+                'units as units_count',
+                'units as occupied_units' => function($query) {
+                    $query->where('status', 'occupied');
+                }
+            ])
+            ->find($id); // Use find() instead of findOrFail() to handle missing properties gracefully
+
+            if (!$property) {
+                Log::warning('Property not found with ID: ' . $id);
+                return response()->json([
+                    'error' => 'Property not found',
+                    'message' => 'The requested property does not exist.'
+                ], 404);
             }
-        ])
-        ->find($id); // Use find() instead of findOrFail() to handle missing properties gracefully
 
-        if (!$property) {
-            Log::warning('Property not found with ID: ' . $id);
+            Log::info('Property found:', ['property_id' => $property->prop_id, 'name' => $property->property_name]);
+            
+            return response()->json($property);
+            
+        } catch (\Exception $e) {
+            Log::error('Error fetching property: ' . $e->getMessage(), [
+                'property_id' => $id,
+                'exception' => $e
+            ]);
+            
             return response()->json([
-                'error' => 'Property not found',
-                'message' => 'The requested property does not exist.'
-            ], 404);
+                'error' => 'Server error',
+                'message' => 'Unable to fetch property details.'
+            ], 500);
         }
-
-        Log::info('Property found:', ['property_id' => $property->prop_id, 'name' => $property->property_name]);
-        
-        return response()->json($property);
-        
-    } catch (\Exception $e) {
-        Log::error('Error fetching property: ' . $e->getMessage(), [
-            'property_id' => $id,
-            'exception' => $e
-        ]);
-        
-        return response()->json([
-            'error' => 'Server error',
-            'message' => 'Unable to fetch property details.'
-        ], 500);
     }
-}
     public function userManagement(Request $request)
     {
         // Get filter parameters
@@ -206,5 +203,270 @@ class AdminController extends Controller
             });
 
         return response()->json($kycDocuments);
+    }
+    
+     public function index()
+    {
+        // Total Properties (All properties in system)
+        $totalProperties = Property::count();
+        
+        // Active Tenants (users with active leases)
+        $activeTenants = User::whereHas('leases', function ($query) {
+            $query->where('status', 'active')
+                ->where('start_date', '<=', now())
+                ->where('end_date', '>=', now());
+        })->count();
+        
+        // Active Landlords (users who own properties)
+        $activeLandlords = User::whereHas('properties')->count();
+        
+        // Total Smart Devices
+        $smartDevices = SmartDevice::count();
+        
+        // Monthly Revenue (last 30 days)
+        $monthlyRevenue = Payment::where('payment_date', '>=', Carbon::now()->subDays(30))
+            ->sum('amount_paid');
+        
+        // Revenue trend (compare last 30 days with previous 30 days)
+        $previousRevenue = Payment::whereBetween('payment_date', 
+            [Carbon::now()->subDays(60), Carbon::now()->subDays(31)])
+            ->sum('amount_paid');
+        
+        $revenueTrend = $previousRevenue > 0 ? 
+            round((($monthlyRevenue - $previousRevenue) / $previousRevenue) * 100, 1) : 
+            ($monthlyRevenue > 0 ? 100 : 0);
+        
+        // Property Overview Metrics
+        $totalUnits = PropertyUnits::count();
+        
+        // Occupied units (units with active leases)
+        $occupiedUnits = PropertyUnits::whereHas('leases', function ($query) {
+            $query->where('status', 'active')
+                ->where('start_date', '<=', now())
+                ->where('end_date', '>=', now());
+        })->count();
+        
+        $availableUnits = $totalUnits - $occupiedUnits;
+        $occupancyRate = $totalUnits > 0 ? round(($occupiedUnits / $totalUnits) * 100) : 0;
+        
+        // Active Maintenance Requests
+        $activeMaintenance = MaintenanceRequest::whereIn('status', ['pending', 'in_progress'])
+            ->count();
+        
+        // Online Smart Devices
+        $onlineDevices = SmartDevice::where('connection_status', 'online')->count();
+        $deviceOnlineRate = $smartDevices > 0 ? round(($onlineDevices / $smartDevices) * 100) : 0;
+        
+        // Recent Activities
+        $recentActivities = $this->getRecentActivities();
+        
+        // User Growth Chart Data
+        $userGrowthData = $this->getUserGrowthData();
+        
+        // Revenue Chart Data
+        $revenueChartData = $this->getRevenueChartData();
+        
+        // Top Performing Properties
+        $topProperties = $this->getTopProperties();
+        
+        // Recent Registrations
+        $recentTenants = User::where('role', 'tenant')
+            ->orderBy('created_at', 'desc')
+            ->take(5)
+            ->get();
+            
+        $recentLandlords = User::where('role', 'landlord')
+            ->orderBy('created_at', 'desc')
+            ->take(5)
+            ->get();
+        
+        return view('admins.dashboard', compact(
+            'totalProperties',
+            'activeTenants',
+            'activeLandlords',
+            'smartDevices',
+            'monthlyRevenue',
+            'revenueTrend',
+            'totalUnits',
+            'occupiedUnits',
+            'availableUnits',
+            'occupancyRate',
+            'activeMaintenance',
+            'onlineDevices',
+            'deviceOnlineRate',
+            'recentActivities',
+            'userGrowthData',
+            'revenueChartData',
+            'topProperties',
+            'recentTenants',
+            'recentLandlords'
+        ));
+    }
+    
+    private function getRecentActivities()
+    {
+        $activities = collect();
+        
+        // Get recent maintenance requests
+        $maintenanceRequests = MaintenanceRequest::with(['unit.property', 'user'])
+            ->orderBy('created_at', 'desc')
+            ->limit(3)
+            ->get()
+            ->map(function ($request) {
+                return [
+                    'type' => 'maintenance',
+                    'icon' => 'tools',
+                    'iconColor' => 'yellow',
+                    'title' => $request->title,
+                    'description' => $request->unit ? 
+                        $request->unit->property->property_name . ' - Unit ' . $request->unit->unit_num : 
+                        'Unknown Unit',
+                    'time' => $request->created_at->diffForHumans(),
+                    'priority' => $request->priority
+                ];
+            });
+        
+        // Get recent payments
+        $recentPayments = Payment::with(['lease.unit.property', 'lease.user'])
+            ->orderBy('payment_date', 'desc')
+            ->limit(2)
+            ->get()
+            ->map(function ($payment) {
+                return [
+                    'type' => 'payment',
+                    'icon' => 'check-circle',
+                    'iconColor' => 'green',
+                    'title' => 'Rent Payment Received',
+                    'description' => $payment->lease->user->first_name . ' ' . 
+                                   $payment->lease->user->last_name . ' - ' . 
+                                   $payment->lease->unit->property->property_name,
+                    'time' => $payment->payment_date->diffForHumans(),
+                    'amount' => $payment->amount_paid
+                ];
+            });
+        
+        // Get recent user registrations - FIXED
+        $recentUsers = User::whereIn('role', ['tenant', 'landlord'])
+            ->orderBy('created_at', 'desc')
+            ->limit(2)
+            ->get()
+            ->map(function ($user) {
+                // Handle role safely
+                $role = $user->role;
+                
+                // Check if role is an enum
+                if ($role instanceof \App\Enums\UserRole) {
+                    $roleString = method_exists($role, 'value') ? $role->value : $role->name;
+                } elseif (is_string($role)) {
+                    $roleString = $role;
+                } else {
+                    $roleString = 'user';
+                }
+                
+                // Get display name for title
+                $roleDisplay = ucfirst($roleString);
+                
+                return [
+                    'type' => 'user',
+                    'icon' => 'user-plus',
+                    'iconColor' => 'blue',
+                    'title' => $roleDisplay . ' Registered',
+                    'description' => $user->first_name . ' ' . $user->last_name,
+                    'time' => $user->created_at->diffForHumans(),
+                    'role' => $roleString
+                ];
+            });
+        
+        // Merge and sort all activities by time
+        $activities = $maintenanceRequests->merge($recentPayments)->merge($recentUsers)
+            ->sortByDesc('time')
+            ->take(5);
+        
+        return $activities;
+    }
+    
+    private function getUserGrowthData()
+    {
+        $months = [];
+        $tenants = [];
+        $landlords = [];
+        
+        for ($i = 5; $i >= 0; $i--) {
+            $month = Carbon::now()->subMonths($i);
+            $monthName = $month->format('M');
+            $months[] = $monthName;
+            
+            $tenantCount = User::where('role', 'tenant')
+                ->whereYear('created_at', $month->year)
+                ->whereMonth('created_at', $month->month)
+                ->count();
+            
+            $landlordCount = User::where('role', 'landlord')
+                ->whereYear('created_at', $month->year)
+                ->whereMonth('created_at', $month->month)
+                ->count();
+            
+            $tenants[] = $tenantCount;
+            $landlords[] = $landlordCount;
+        }
+        
+        return [
+            'labels' => $months,
+            'tenants' => $tenants,
+            'landlords' => $landlords
+        ];
+    }
+    
+    private function getRevenueChartData()
+    {
+        // Get revenue for last 6 months
+        $months = [];
+        $revenues = [];
+        
+        for ($i = 5; $i >= 0; $i--) {
+            $month = Carbon::now()->subMonths($i);
+            $monthName = $month->format('M');
+            $months[] = $monthName;
+            
+            $revenue = Payment::whereYear('payment_date', $month->year)
+                ->whereMonth('payment_date', $month->month)
+                ->sum('amount_paid');
+            
+            $revenues[] = $revenue;
+        }
+        
+        // Find highest revenue month
+        $maxRevenue = max($revenues);
+        $maxMonthIndex = array_search($maxRevenue, $revenues);
+        $highestMonth = $maxRevenue > 0 ? $months[$maxMonthIndex] : null;
+        
+        return [
+            'labels' => $months,
+            'data' => $revenues,
+            'highest_month' => $highestMonth,
+            'highest_revenue' => $maxRevenue
+        ];
+    }
+    
+    private function getTopProperties()
+    {
+        return Property::withCount([
+            'units',
+            'activeLease as active_leases_count' 
+        ])
+        ->withSum('units', 'area_sqm')
+        ->orderBy('active_leases_count', 'desc')
+        ->take(5)
+        ->get()
+        ->map(function ($property) {
+            // Calculate occupancy rate
+            $property->units_count = $property->units_count ?? 0;
+            $property->active_leases_count = $property->active_leases_count ?? 0;
+            
+            $property->occupancy_rate = $property->units_count > 0 ? 
+                round(($property->active_leases_count / $property->units_count) * 100) : 0;
+            
+            return $property;
+        });
     }
 }

@@ -103,7 +103,7 @@
                         </div>
                         <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 border-2 border-gray-800 rounded-full"></div>
                     </div>
-                    <div class="flex-1 min-w-0">tenant
+                    <div class="flex-1 min-w-0">
                         <p class="text-md font-semibold text-gray-900 truncate capitalize">
                             @auth
                                 {{ Auth::user()->first_name }} 

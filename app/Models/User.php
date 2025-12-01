@@ -112,4 +112,16 @@ class User extends Authenticatable
     {
         return $this->hasManyThrough(Billing::class, Leases::class, 'user_id', 'lease_id', 'user_id',  'lease_id'  );
     }
+    public function properties()
+    {
+        return $this->hasMany(Property::class, 'user_id', 'user_id');
+    }
+    public function isActiveTenant()
+    {
+        return $this->leases()
+            ->where('status', 'active')
+            ->where('start_date', '<=', now())
+            ->where('end_date', '>=', now())
+            ->exists();
+    }
 }
