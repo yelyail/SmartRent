@@ -69,20 +69,12 @@
                         <p class="text-xs text-gray-400 truncate capitalize">{{ Auth::user()->role }}</p>
                     </div>
                     <div class="relative group">
-                        <button class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors duration-200 rounded-lg hover:bg-blue-500">
-                            <i class="fas fa-ellipsis-v text-sm"></i>
-                        </button>
-                        <!-- Dropdown Menu -->
-                        <div class="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                            <div class="border-t border-gray-200 my-1"></div>
-                            <form method="POST" action="{{ route('logout') }}">
+                         <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <button type="submit" class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
                                     <i class="fas fa-sign-out-alt mr-3 text-xs"></i>
-                                    Logout
                                 </button>
                             </form>
-                        </div>
                     </div>
                 </div>
             </div>
