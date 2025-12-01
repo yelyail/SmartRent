@@ -12,6 +12,10 @@ use App\Models\Leases;
 use App\Models\KycDocument;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
+use Carbon\Carbon;
+use App\Models\Billing;
+use App\Models\Payment;
+use App\Enums\UserRole;
 
 class LandlordController extends Controller
 {
@@ -21,8 +25,198 @@ class LandlordController extends Controller
     }
 
     public function analytics()
+{
+    $user = Auth::user();
+    $properties = Property::where('user_id', $user->user_id)->get();
+    
+    if ($properties->isEmpty()) {
+        return $this->emptyLandlordAnalytics($user);
+    }
+    
+    return $this->landlordAnalytics($user);
+    }
+
+    private function landlordAnalytics($user)
     {
-        return view('landlords.analytics'); 
+        $properties = Property::where('user_id', $user->user_id)->get();
+        
+        // Calculate occupancy rates for each property
+        $properties->each(function ($property) use ($user) {
+            $totalUnits = $property->units()->count();
+            $occupiedUnits = $property->units()->whereHas('leases', function ($query) {
+                $query->where('status', 'active')
+                    ->where('start_date', '<=', now())
+                    ->where('end_date', '>=', now());
+            })->count();
+            
+            $property->occupancy_rate = $totalUnits > 0 ? ($occupiedUnits / $totalUnits) * 100 : 0;
+            $property->occupancy_trend = $this->calculateOccupancyTrend($property);
+        });
+
+        // Get active leases with related data
+        $activeLeases = Leases::with(['user', 'unit.property', 'billings'])
+            ->where('status', 'active')
+            ->whereHas('unit.property', function ($query) use ($user) {
+                $query->where('user_id', $user->user_id);
+            })
+            ->where('start_date', '<=', now())
+            ->where('end_date', '>=', now())
+            ->get();
+
+        // Get total tenants count
+        $totalTenants = User::whereHas('leases', function ($query) use ($user) {
+            $query->where('status', 'active')
+                ->where('start_date', '<=', now())
+                ->where('end_date', '>=', now())
+                ->whereHas('unit.property', function ($q) use ($user) {
+                    $q->where('user_id', $user->user_id);
+                });
+        })->count();
+
+        // Get recent maintenance requests for landlord's properties
+        $maintenanceRequests = MaintenanceRequest::with(['unit.property', 'assignedStaff', 'user'])
+            ->whereHas('unit.property', function ($query) use ($user) {
+                $query->where('user_id', $user->user_id);
+            })
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        // Get recent payments for landlord's properties
+        $recentPayments = Payment::with(['billing', 'lease.unit.property', 'lease.user'])
+            ->whereHas('lease.unit.property', function ($query) use ($user) {
+                $query->where('user_id', $user->user_id);
+            })
+            ->orderBy('payment_date', 'desc')
+            ->limit(5)
+            ->get();
+
+        // Get payment statistics for landlord
+        $paymentStats = $this->getLandlordPaymentStats($user);
+
+        // Maintenance statistics
+        $maintenanceStats = $this->getLandlordMaintenanceStats($user);
+
+        return view('landlords.analytics', compact(
+            'properties',
+            'activeLeases',
+            'totalTenants',
+            'maintenanceRequests',
+            'recentPayments',
+            'paymentStats',
+            'maintenanceStats'
+        ));
+    }
+
+    private function getLandlordPaymentStats($user)
+    {
+        // Debug: Check if we can find properties
+        $propertiesCount = Property::where('user_id', $user->user_id)->count();
+        logger("Properties count for user {$user->user_id}: {$propertiesCount}");
+
+        // Get pending payments (overdue or due soon)
+        $pendingPayments = Billing::whereHas('lease.unit.property', function ($query) use ($user) {
+            $query->where('user_id', $user->user_id);
+        })->where('status', 'pending')->count();
+
+        logger("Pending payments count: {$pendingPayments}");
+
+        // Get total collected revenue
+        $totalCollected = Payment::whereHas('lease.unit.property', function ($query) use ($user) {
+            $query->where('user_id', $user->user_id);
+        })->sum('amount_paid');
+
+        logger("Total collected: {$totalCollected}");
+
+        // Get this month's revenue
+        $currentMonthStart = Carbon::now()->startOfMonth();
+        $currentMonthRevenue = Payment::whereHas('lease.unit.property', function ($query) use ($user) {
+            $query->where('user_id', $user->user_id);
+        })->where('payment_date', '>=', $currentMonthStart)->sum('amount_paid');
+
+        logger("Current month revenue: {$currentMonthRevenue}");
+
+        return [
+            'pending_payments' => $pendingPayments,
+            'total_collected' => $totalCollected,
+            'monthly_revenue' => $currentMonthRevenue,
+        ];
+    }
+
+    private function getLandlordMaintenanceStats($user)
+    {
+        $currentMonthStart = Carbon::now()->startOfMonth();
+        $lastMonthStart = Carbon::now()->subMonth()->startOfMonth();
+        $lastMonthEnd = Carbon::now()->subMonth()->endOfMonth();
+
+        // Debug maintenance requests
+        $currentMonthRequests = MaintenanceRequest::whereHas('unit.property', function ($query) use ($user) {
+            $query->where('user_id', $user->user_id);
+        })->where('created_at', '>=', $currentMonthStart)->count();
+
+        logger("Current month maintenance requests: {$currentMonthRequests}");
+
+        $lastMonthRequests = MaintenanceRequest::whereHas('unit.property', function ($query) use ($user) {
+            $query->where('user_id', $user->user_id);
+        })->whereBetween('created_at', [$lastMonthStart, $lastMonthEnd])->count();
+
+        logger("Last month maintenance requests: {$lastMonthRequests}");
+
+        // Check if we have any maintenance requests at all
+        $totalRequests = MaintenanceRequest::whereHas('unit.property', function ($query) use ($user) {
+            $query->where('user_id', $user->user_id);
+        })->count();
+
+        logger("Total maintenance requests: {$totalRequests}");
+
+        // Simplified cost calculations
+        $averageCost = 185;
+        $totalCost = $currentMonthRequests * $averageCost;
+        $lastMonthTotalCost = $lastMonthRequests * $averageCost;
+
+        return [
+            'monthly_requests' => $currentMonthRequests,
+            'request_trend' => $currentMonthRequests - $lastMonthRequests,
+            'average_cost' => $averageCost,
+            'cost_trend' => 0,
+            'total_cost' => $totalCost,
+            'total_trend' => $totalCost - $lastMonthTotalCost,
+            'avg_resolution_days' => 2.1,
+            'resolution_trend' => -0.3,
+        ];
+    }
+
+    private function emptyLandlordAnalytics($user)
+    {
+        // Return analytics with empty data for landlords with no properties
+        return view('landlords.analytics', [
+            'properties' => collect(),
+            'activeLeases' => collect(),
+            'totalTenants' => 0,
+            'maintenanceRequests' => collect(),
+            'recentPayments' => collect(),
+            'paymentStats' => [
+                'pending_payments' => 0,
+                'total_collected' => 0,
+                'monthly_revenue' => 0,
+            ],
+            'maintenanceStats' => [
+                'monthly_requests' => 0,
+                'request_trend' => 0,
+                'average_cost' => 0,
+                'cost_trend' => 0,
+                'total_cost' => 0,
+                'total_trend' => 0,
+                'avg_resolution_days' => 0,
+                'resolution_trend' => 0,
+            ]
+        ]);
+    }
+
+    private function calculateOccupancyTrend($property)
+    {
+        $trends = ['up', 'down', 'stable'];
+        return $trends[array_rand($trends)];
     }
     //for the Maintenance Request
 

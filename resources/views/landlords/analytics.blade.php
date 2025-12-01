@@ -1,205 +1,311 @@
 @extends('layouts.landlord')
 
-@section('title', 'Analytics_landlord - SmartRent')
-@section('page-description', 'Welcome back! Here\'s what\'s happening with your properties.')
+@section('title', 'Analytics_tenant - SmartRent')
+@section('page-description', 'Your rental dashboard and analytics')
 
 @section('content')
-    <!-- Key Metrics Cards -->
+    <!-- Key Metrics Cards for Tenant -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- Current Rent -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-home text-blue-600 text-lg"></i>
+                </div>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 mb-1">Monthly Rent</p>
+                <p class="text-3xl font-bold text-gray-900">
+                    ₱{{ number_format($currentLease->rent_amount ?? 0, 2) }}
+                </p>
+                <p class="text-xs text-gray-500 mt-1">Current lease</p>
+            </div>
+        </div>
+
+       <!-- Maintenance Requests -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-tools text-orange-600 text-lg"></i>
+                </div>
+                <div class="flex items-center {{ $maintenanceStats['request_trend'] >= 0 ? 'text-orange-600' : 'text-green-600' }} text-sm font-medium">
+                    @if($maintenanceStats['request_trend'] > 0)
+                        <i class="fas fa-arrow-up text-xs mr-1"></i>
+                    @elseif($maintenanceStats['request_trend'] < 0)
+                        <i class="fas fa-arrow-down text-xs mr-1"></i>
+                    @endif
+                    {{ $maintenanceStats['request_trend'] >= 0 ? '+' : '' }}{{ $maintenanceStats['request_trend'] }}
+                </div>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 mb-1">Maintenance Requests</p>
+                <p class="text-3xl font-bold text-gray-900">{{ $maintenanceStats['monthly_requests'] }}</p>
+                <p class="text-xs text-gray-500 mt-1">This month</p>
+            </div>
+        </div>
+
+        <!-- Pending Payments -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-clock text-yellow-600 text-lg"></i>
+                </div>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 mb-1">Pending Payments</p>
+                <p class="text-3xl font-bold text-gray-900">{{ $paymentStats['pending_payments'] }}</p>
+                <p class="text-xs text-gray-500 mt-1">Require attention</p>
+            </div>
+        </div>
+
         <!-- Monthly Revenue -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div class="flex items-center justify-between mb-4">
                 <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                     <i class="fas fa-dollar-sign text-green-600 text-lg"></i>
                 </div>
-                <div class="flex items-center text-green-600 text-sm font-medium">
-                    <i class="fas fa-arrow-up text-xs mr-1"></i>
-                    +8.2%
-                </div>
             </div>
             <div>
                 <p class="text-sm text-gray-600 mb-1">Monthly Revenue</p>
-                <p class="text-3xl font-bold text-gray-900">$52,000</p>
-                <p class="text-xs text-gray-500 mt-1">vs $48,000 last month</p>
-            </div>
-        </div>
-
-        <!-- Avg Occupancy -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between mb-4">
-                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-home text-blue-600 text-lg"></i>
-                </div>
-                <div class="flex items-center text-green-600 text-sm font-medium">
-                    <i class="fas fa-arrow-up text-xs mr-1"></i>
-                    +2.1%
-                </div>
-            </div>
-            <div>
-                <p class="text-sm text-gray-600 mb-1">Avg Occupancy</p>
-                <p class="text-3xl font-bold text-gray-900">93.2%</p>
-                <p class="text-xs text-gray-500 mt-1">across all properties</p>
-            </div>
-        </div>
-
-        <!-- Tenant Turnover -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between mb-4">
-                <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-users text-purple-600 text-lg"></i>
-                </div>
-                <div class="flex items-center text-red-600 text-sm font-medium">
-                    <i class="fas fa-arrow-down text-xs mr-1"></i>
-                    -1.2%
-                </div>
-            </div>
-            <div>
-                <p class="text-sm text-gray-600 mb-1">Tenant Turnover</p>
-                <p class="text-3xl font-bold text-gray-900">8.5%</p>
-                <p class="text-xs text-gray-500 mt-1">annual rate</p>
-            </div>
-        </div>
-
-        <!-- Net Profit -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between mb-4">
-                <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-chart-line text-orange-600 text-lg"></i>
-                </div>
-                <div class="flex items-center text-green-600 text-sm font-medium">
-                    <i class="fas fa-arrow-up text-xs mr-1"></i>
-                    +12.3%
-                </div>
-            </div>
-            <div>
-                <p class="text-sm text-gray-600 mb-1">Net Profit</p>
-                <p class="text-3xl font-bold text-gray-900">$35,500</p>
-                <p class="text-xs text-gray-500 mt-1">this month</p>
+                <p class="text-3xl font-bold text-gray-900">₱{{ number_format($paymentStats['monthly_revenue'], 2) }}</p>
+                <p class="text-xs text-gray-500 mt-1">This month</p>
             </div>
         </div>
     </div>
 
-    <!-- Charts Section -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <!-- Revenue vs Expenses Chart -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="text-lg font-semibold text-gray-900">Revenue vs Expenses</h3>
-                <div class="flex items-center space-x-4 text-sm">
-                    <div class="flex items-center">
-                        <div class="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-                        <span class="text-gray-600">Revenue</span>
-                    </div>
-                    <div class="flex items-center">
-                        <div class="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-                        <span class="text-gray-600">Expenses</span>
-                    </div>
+    <!-- Active Leases Overview -->
+    @if($activeLeases->count() > 0)
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-semibold text-gray-900">Active Leases Overview</h3>
+            <span class="text-sm text-gray-600">{{ $activeLeases->count() }} active leases</span>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Total Monthly Rent -->
+            <div class="text-center p-4 bg-blue-50 rounded-lg">
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-dollar-sign text-blue-600"></i>
                 </div>
+                <p class="text-sm text-gray-600 mb-1">Total Monthly Rent</p>
+                <p class="text-2xl font-bold text-gray-900">
+                    ₱{{ number_format($activeLeases->sum('rent_amount'), 2) }}
+                </p>
             </div>
-            <div class="h-64">
-                <canvas id="revenueChart"></canvas>
+
+            <!-- Average Rent -->
+            <div class="text-center p-4 bg-green-50 rounded-lg">
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-chart-line text-green-600"></i>
+                </div>
+                <p class="text-sm text-gray-600 mb-1">Average Rent</p>
+                <p class="text-2xl font-bold text-gray-900">
+                    ₱{{ number_format($activeLeases->avg('rent_amount'), 2) }}
+                </p>
+            </div>
+
+            <!-- Lease Distribution -->
+            <div class="text-center p-4 bg-purple-50 rounded-lg">
+                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-calendar text-purple-600"></i>
+                </div>
+                <p class="text-sm text-gray-600 mb-1">Avg Lease Duration</p>
+                <p class="text-2xl font-bold text-gray-900">
+                    @php
+                        $avgMonths = $activeLeases->avg(function($lease) {
+                            return \Carbon\Carbon::parse($lease->start_date)->diffInMonths(\Carbon\Carbon::parse($lease->end_date));
+                        });
+                    @endphp
+                    {{ number_format($avgMonths) }} months
+                </p>
             </div>
         </div>
 
-        <!-- Property Occupancy -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-6">Property Occupancy</h3>
-            <div class="space-y-4">
-                <!-- Sunset Villa -->
-                <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-gray-700">Sunset Villa</span>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-32 bg-gray-200 rounded-full h-2">
-                            <div class="bg-blue-500 h-2 rounded-full" style="width: 95%"></div>
+        <!-- Recent Active Leases -->
+        <div class="mt-6">
+            <h4 class="text-md font-semibold text-gray-900 mb-4">Recent Active Leases</h4>
+            <div class="space-y-3">
+                @foreach($activeLeases->take(3) as $lease)
+                <div class="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-user text-blue-600 text-xs"></i>
                         </div>
-                        <span class="text-sm font-medium text-gray-900">95%</span>
-                        <i class="fas fa-arrow-up text-green-500 text-xs"></i>
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">
+                                {{ $lease->user->first_name ?? 'N/A' }} {{ $lease->user->last_name ?? '' }}
+                            </p>
+                            <p class="text-xs text-gray-500">
+                                {{ $lease->unit->property->property_name ?? 'N/A' }} - Unit {{ $lease->unit->unit_num ?? 'N/A' }}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-medium text-gray-900">
+                            ₱{{ number_format($lease->rent_amount, 2) }}
+                        </p>
+                        <p class="text-xs text-gray-500">
+                            {{ \Carbon\Carbon::parse($lease->end_date)->diffInMonths(now()) }}m remaining
+                        </p>
                     </div>
                 </div>
-
-                <!-- Downtown Lofts -->
-                <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-gray-700">Downtown Lofts</span>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-32 bg-gray-200 rounded-full h-2">
-                            <div class="bg-blue-500 h-2 rounded-full" style="width: 88%"></div>
-                        </div>
-                        <span class="text-sm font-medium text-gray-900">88%</span>
-                        <i class="fas fa-arrow-down text-red-500 text-xs"></i>
-                    </div>
-                </div>
-
-                <!-- Garden Court -->
-                <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-gray-700">Garden Court</span>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-32 bg-gray-200 rounded-full h-2">
-                            <div class="bg-blue-500 h-2 rounded-full" style="width: 92%"></div>
-                        </div>
-                        <span class="text-sm font-medium text-gray-900">92%</span>
-                        <i class="fas fa-arrow-up text-green-500 text-xs"></i>
-                    </div>
-                </div>
-
-                <!-- Tech Hub -->
-                <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-gray-700">Tech Hub</span>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-32 bg-gray-200 rounded-full h-2">
-                            <div class="bg-blue-500 h-2 rounded-full" style="width: 98%"></div>
-                        </div>
-                        <span class="text-sm font-medium text-gray-900">98%</span>
-                        <div class="w-3 h-3 bg-gray-300 rounded-full"></div>
-                    </div>
-                </div>
-
-                <!-- Historic Heights -->
-                <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-gray-700">Historic Heights</span>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-32 bg-gray-200 rounded-full h-2">
-                            <div class="bg-blue-500 h-2 rounded-full" style="width: 85%"></div>
-                        </div>
-                        <span class="text-sm font-medium text-gray-900">85%</span>
-                        <i class="fas fa-arrow-down text-red-500 text-xs"></i>
-                    </div>
-                </div>
+                @endforeach
             </div>
+            
+            @if($activeLeases->count() > 3)
+            <div class="mt-4 text-center">
+                <a href="{{ route('landlords.analytics') }}" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                    View all {{ $activeLeases->count() }} active leases
+                </a>
+            </div>
+            @endif
         </div>
     </div>
+    @else
+    <!-- No Active Leases -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+        <div class="text-center py-8">
+            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-file-contract text-gray-400 text-2xl"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No Active Leases</h3>
+            <p class="text-gray-500 mb-4">There are no active tenant leases at the moment.</p>
+            <a href="{{ route('landlords.properties') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <i class="fas fa-plus mr-2 text-sm"></i>
+                Add Properties
+            </a>
+        </div>
+    </div>
+    @endif
 
-    <!-- Maintenance Analytics -->
+    <!-- Recent Maintenance Requests -->
+    @if($maintenanceRequests->count() > 0)
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-semibold text-gray-900">Recent Maintenance Requests</h3>
+            <a href="{{ route('landlords.maintenance') }}" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                View All
+            </a>
+        </div>
+        
+        <div class="space-y-4">
+            @foreach($maintenanceRequests as $request)
+            <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                <div class="flex items-center space-x-4">
+                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-wrench text-blue-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-900">{{ $request->title }}</p>
+                        <p class="text-xs text-gray-500">
+                            {{ $request->unit->property->property_name ?? 'N/A' }} - Unit {{ $request->unit->unit_num ?? 'N/A' }}
+                        </p>
+                        <p class="text-xs text-gray-400">
+                            by {{ $request->user->first_name ?? 'Tenant' }} {{ $request->user->last_name ?? '' }}
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                        @if($request->priority == 'high' || $request->priority == 'urgent') bg-red-100 text-red-800
+                        @elseif($request->priority == 'medium') bg-yellow-100 text-yellow-800
+                        @else bg-green-100 text-green-800 @endif">
+                        {{ $request->priority }}
+                    </span>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                        @if($request->status == 'pending') bg-orange-100 text-orange-800
+                        @elseif($request->status == 'in_progress') bg-blue-100 text-blue-800
+                        @else bg-green-100 text-green-800 @endif">
+                        {{ str_replace('_', ' ', $request->status) }}
+                    </span>
+                </div>
+            </div>
+            @endforeach
+        </div>
+    </div>
+    @else
+    <!-- No Maintenance Requests -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+        <div class="text-center py-8">
+            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-wrench text-gray-400 text-2xl"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No Maintenance Requests</h3>
+            <p class="text-gray-500">There are no maintenance requests across your properties.</p>
+        </div>
+    </div>
+    @endif
+
+    <!-- Recent Payments -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-6">Maintenance Analytics</h3>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <!-- Requests This Month -->
-            <div class="text-center">
-                <div class="text-4xl font-bold text-gray-900 mb-2">15</div>
-                <div class="text-sm text-gray-600 mb-1">Requests This Month</div>
-                <div class="text-xs text-orange-600">+3 vs last month</div>
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-semibold text-gray-900">Recent Payments Received</h3>
+            {{-- <a href="{{ route('landlords.payments') }}" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                View All
+            </a> --}}
+        </div>
+        
+        <div class="space-y-4">
+            @forelse($recentPayments as $payment)
+            <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                <div class="flex items-center space-x-4">
+                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-receipt text-green-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-900">
+                            {{ $payment->lease->user->first_name ?? 'Tenant' }} {{ $payment->lease->user->last_name ?? '' }}
+                        </p>
+                        <p class="text-xs text-gray-500">
+                            {{ $payment->billing->bill_name ?? 'Rent Payment' }}
+                        </p>
+                        <p class="text-xs text-gray-400">
+                            {{ $payment->lease->unit->property->property_name ?? 'N/A' }} - Unit {{ $payment->lease->unit->unit_num ?? 'N/A' }}
+                        </p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm font-medium text-gray-900">
+                        ₱{{ number_format($payment->amount_paid, 2) }}
+                    </p>
+                    <p class="text-xs text-gray-500 capitalize">
+                        {{ $payment->payment_method ?? 'N/A' }}
+                    </p>
+                    <p class="text-xs text-gray-400">
+                        {{ \Carbon\Carbon::parse($payment->payment_date)->format('M j, Y') }}
+                    </p>
+                </div>
             </div>
-
-            <!-- Average Cost -->
-            <div class="text-center">
-                <div class="text-4xl font-bold text-gray-900 mb-2">$185</div>
-                <div class="text-sm text-gray-600 mb-1">Average Cost</div>
-                <div class="text-xs text-green-600">-$15 vs last month</div>
+            @empty
+            <div class="text-center py-8">
+                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-receipt text-gray-400 text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No Recent Payments</h3>
+                <p class="text-gray-500">No payment records found for your properties.</p>
             </div>
+            @endforelse
+        </div>
 
-            <!-- Total This Month -->
-            <div class="text-center">
-                <div class="text-4xl font-bold text-gray-900 mb-2">$2775</div>
-                <div class="text-sm text-gray-600 mb-1">Total This Month</div>
-                <div class="text-xs text-orange-600">+$420 vs last month</div>
-            </div>
-
-            <!-- Days Avg Resolution -->
-            <div class="text-center">
-                <div class="text-4xl font-bold text-gray-900 mb-2">2.1</div>
-                <div class="text-sm text-gray-600 mb-1">Days Avg Resolution</div>
-                <div class="text-xs text-green-600">-0.3 days improvement</div>
+        <!-- Payment Summary -->
+        @if($recentPayments->count() > 0)
+        <div class="mt-6 pt-6 border-t border-gray-200">
+            <div class="grid grid-cols-2 gap-4 text-center">
+                <div>
+                    <p class="text-sm text-gray-600">This Month</p>
+                    <p class="text-lg font-semibold text-gray-900">
+                        ₱{{ number_format($paymentStats['monthly_revenue'], 2) }}
+                    </p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">Total Collected</p>
+                    <p class="text-lg font-semibold text-gray-900">
+                        ₱{{ number_format($paymentStats['total_collected'], 2) }}
+                    </p>
+                </div>
             </div>
         </div>
+        @endif
     </div>
 @endsection
 
