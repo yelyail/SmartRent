@@ -28,14 +28,6 @@
                 <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                     <i class="fas fa-tools text-orange-600 text-lg"></i>
                 </div>
-                <div class="flex items-center {{ $maintenanceStats['request_trend'] >= 0 ? 'text-orange-600' : 'text-green-600' }} text-sm font-medium">
-                    @if($maintenanceStats['request_trend'] > 0)
-                        <i class="fas fa-arrow-up text-xs mr-1"></i>
-                    @elseif($maintenanceStats['request_trend'] < 0)
-                        <i class="fas fa-arrow-down text-xs mr-1"></i>
-                    @endif
-                    {{ $maintenanceStats['request_trend'] >= 0 ? '+' : '' }}{{ $maintenanceStats['request_trend'] }}
-                </div>
             </div>
             <div>
                 <p class="text-sm text-gray-600 mb-1">Maintenance Requests</p>
@@ -143,9 +135,6 @@
                     <div class="text-right">
                         <p class="text-sm font-medium text-gray-900">
                             ₱{{ number_format($lease->rent_amount, 2) }}
-                        </p>
-                        <p class="text-xs text-gray-500">
-                            {{ \Carbon\Carbon::parse($lease->end_date)->diffInMonths(now()) }}m remaining
                         </p>
                     </div>
                 </div>

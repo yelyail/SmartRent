@@ -25,15 +25,15 @@ class LandlordController extends Controller
     }
 
     public function analytics()
-{
-    $user = Auth::user();
-    $properties = Property::where('user_id', $user->user_id)->get();
-    
-    if ($properties->isEmpty()) {
-        return $this->emptyLandlordAnalytics($user);
-    }
-    
-    return $this->landlordAnalytics($user);
+    {
+        $user = Auth::user();
+        $properties = Property::where('user_id', $user->user_id)->get();
+        
+        if ($properties->isEmpty()) {
+            return $this->emptyLandlordAnalytics($user);
+        }
+        
+        return $this->landlordAnalytics($user);
     }
 
     private function landlordAnalytics($user)
@@ -96,10 +96,19 @@ class LandlordController extends Controller
 
         // Maintenance statistics
         $maintenanceStats = $this->getLandlordMaintenanceStats($user);
+    $currentLease = Leases::with(['user', 'unit.property', 'billings'])
+            ->where('status', 'active')
+            ->whereHas('unit.property', function ($query) use ($user) {
+                $query->where('user_id', $user->user_id);
+            })
+            ->where('start_date', '<=', now())
+            ->where('end_date', '>=', now())
+            ->first(); 
 
         return view('landlords.analytics', compact(
             'properties',
             'activeLeases',
+            'currentLease',
             'totalTenants',
             'maintenanceRequests',
             'recentPayments',
@@ -110,34 +119,55 @@ class LandlordController extends Controller
 
     private function getLandlordPaymentStats($user)
     {
-        // Debug: Check if we can find properties
-        $propertiesCount = Property::where('user_id', $user->user_id)->count();
-        logger("Properties count for user {$user->user_id}: {$propertiesCount}");
+        $properties = Property::where('user_id', $user->user_id)->get();
+        logger("Properties found for user {$user->user_id}: " . $properties->count());
+        foreach($properties as $property) {
+            logger("Property: {$property->property_name}, ID: {$property->prop_id}");
 
-        // Get pending payments (overdue or due soon)
-        $pendingPayments = Billing::whereHas('lease.unit.property', function ($query) use ($user) {
+            $units = $property->units;
+            logger("Units in property {$property->prop_id}: " . $units->count());
+            
+            // Check leases
+            foreach($units as $unit) {
+                $leases = $unit->leases()->where('status', 'active')->get();
+                logger("Active leases in unit {$unit->unit_id}: " . $leases->count());
+            }
+        }
+
+        // Debug 2: Check pending billings directly
+        $pendingBillings = Billing::whereHas('lease.unit.property', function ($query) use ($user) {
             $query->where('user_id', $user->user_id);
-        })->where('status', 'pending')->count();
+        })->where('status', 'pending')->get();
+        
+        logger("Pending billings raw query result:");
+        foreach($pendingBillings as $billing) {
+            logger("Billing ID: {$billing->bill_id}, Amount: {$billing->amount}, Lease ID: {$billing->lease_id}");
+        }
 
-        logger("Pending payments count: {$pendingPayments}");
+        // Debug 3: Check payments with alternative query
+        $payments = Payment::with(['lease.unit.property'])
+            ->whereHas('lease.unit.property', function ($query) use ($user) {
+                $query->where('user_id', $user->user_id);
+            })
+            ->get();
+        
+        logger("Payments found: " . $payments->count());
+        foreach($payments as $payment) {
+            logger("Payment ID: {$payment->payment_id}, Amount: {$payment->amount_paid}, Date: {$payment->payment_date}");
+        }
 
-        // Get total collected revenue
-        $totalCollected = Payment::whereHas('lease.unit.property', function ($query) use ($user) {
-            $query->where('user_id', $user->user_id);
-        })->sum('amount_paid');
-
-        logger("Total collected: {$totalCollected}");
-
-        // Get this month's revenue
-        $currentMonthStart = Carbon::now()->startOfMonth();
+        // Use alternative approach if needed
+        $totalCollected = $payments->sum('amount_paid');
+        
         $currentMonthRevenue = Payment::whereHas('lease.unit.property', function ($query) use ($user) {
             $query->where('user_id', $user->user_id);
-        })->where('payment_date', '>=', $currentMonthStart)->sum('amount_paid');
-
-        logger("Current month revenue: {$currentMonthRevenue}");
+        })
+        ->whereMonth('payment_date', now()->month)
+        ->whereYear('payment_date', now()->year)
+        ->sum('amount_paid');
 
         return [
-            'pending_payments' => $pendingPayments,
+            'pending_payments' => $pendingBillings->count(),
             'total_collected' => $totalCollected,
             'monthly_revenue' => $currentMonthRevenue,
         ];
@@ -145,42 +175,53 @@ class LandlordController extends Controller
 
     private function getLandlordMaintenanceStats($user)
     {
+        // Debug: Check maintenance requests
+        $maintenanceRequests = MaintenanceRequest::with(['unit.property'])
+            ->whereHas('unit.property', function ($query) use ($user) {
+                $query->where('user_id', $user->user_id);
+            })
+            ->get();
+        
+        logger("Total maintenance requests found: " . $maintenanceRequests->count());
+        foreach($maintenanceRequests as $request) {
+            logger("Request ID: {$request->request_id}, Title: {$request->title}, Unit ID: {$request->unit_id}");
+        }
+
         $currentMonthStart = Carbon::now()->startOfMonth();
         $lastMonthStart = Carbon::now()->subMonth()->startOfMonth();
         $lastMonthEnd = Carbon::now()->subMonth()->endOfMonth();
 
-        // Debug maintenance requests
+        // Current month requests
         $currentMonthRequests = MaintenanceRequest::whereHas('unit.property', function ($query) use ($user) {
             $query->where('user_id', $user->user_id);
-        })->where('created_at', '>=', $currentMonthStart)->count();
+        })
+        ->where('created_at', '>=', $currentMonthStart)
+        ->count();
 
-        logger("Current month maintenance requests: {$currentMonthRequests}");
-
+        // Last month requests
         $lastMonthRequests = MaintenanceRequest::whereHas('unit.property', function ($query) use ($user) {
             $query->where('user_id', $user->user_id);
-        })->whereBetween('created_at', [$lastMonthStart, $lastMonthEnd])->count();
+        })
+        ->whereBetween('created_at', [$lastMonthStart, $lastMonthEnd])
+        ->count();
 
-        logger("Last month maintenance requests: {$lastMonthRequests}");
+        logger("Current month requests: {$currentMonthRequests}, Last month: {$lastMonthRequests}");
 
-        // Check if we have any maintenance requests at all
-        $totalRequests = MaintenanceRequest::whereHas('unit.property', function ($query) use ($user) {
-            $query->where('user_id', $user->user_id);
-        })->count();
-
-        logger("Total maintenance requests: {$totalRequests}");
-
-        // Simplified cost calculations
-        $averageCost = 185;
-        $totalCost = $currentMonthRequests * $averageCost;
-        $lastMonthTotalCost = $lastMonthRequests * $averageCost;
+        // Calculate trend
+        $requestTrend = 0;
+        if ($lastMonthRequests > 0) {
+            $requestTrend = round((($currentMonthRequests - $lastMonthRequests) / $lastMonthRequests) * 100);
+        } elseif ($currentMonthRequests > 0) {
+            $requestTrend = 100; // 100% increase from 0
+        }
 
         return [
             'monthly_requests' => $currentMonthRequests,
-            'request_trend' => $currentMonthRequests - $lastMonthRequests,
-            'average_cost' => $averageCost,
+            'request_trend' => $requestTrend,
+            'average_cost' => 185,
             'cost_trend' => 0,
-            'total_cost' => $totalCost,
-            'total_trend' => $totalCost - $lastMonthTotalCost,
+            'total_cost' => $currentMonthRequests * 185,
+            'total_trend' => 0,
             'avg_resolution_days' => 2.1,
             'resolution_trend' => -0.3,
         ];
