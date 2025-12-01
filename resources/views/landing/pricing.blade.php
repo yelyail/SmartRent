@@ -14,7 +14,7 @@
             <div class="border border-gray-200 rounded-lg p-6 bg-white">
                 <h3 class="text-xl font-semibold text-gray-900">Starter</h3>
                 <p class="text-gray-600 mt-2">Ideal for single landlords with 1–3 units.</p>
-                <p class="text-4xl font-bold text-gray-900 mt-6">$9/mo</p>
+                <p class="text-4xl font-bold text-gray-900 mt-6">₱9/mo</p>
                 <ul class="mt-6 space-y-3 text-gray-700">
                     <li><i class="fas fa-check text-green-500"></i> 3 Properties</li>
                     <li><i class="fas fa-check text-green-500"></i> Rent Collection</li>
@@ -29,7 +29,7 @@
             <div class="border border-gray-200 rounded-lg p-6 bg-white shadow-lg">
                 <h3 class="text-xl font-semibold text-gray-900">Pro</h3>
                 <p class="text-gray-600 mt-2">Best for growing rental businesses.</p>
-                <p class="text-4xl font-bold text-gray-900 mt-6">$29/mo</p>
+                <p class="text-4xl font-bold text-gray-900 mt-6">₱29/mo</p>
                 <ul class="mt-6 space-y-3 text-gray-700">
                     <li><i class="fas fa-check text-green-500"></i> Unlimited Properties</li>
                     <li><i class="fas fa-check text-green-500"></i> Automated Invoices</li>

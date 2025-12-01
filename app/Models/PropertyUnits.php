@@ -35,4 +35,8 @@ class PropertyUnits extends Model
         return $this->hasOne(Leases::class, 'unit_id', 'unit_id')
                     ->where('lease_status', 'active');
     }
+    public function maintenanceRequests()
+    {
+        return $this->hasMany(MaintenanceRequest::class, 'unit_id', 'unit_id');
+    }
 }

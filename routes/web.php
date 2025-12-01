@@ -202,16 +202,10 @@ Route::middleware(['auth', 'role:tenants'])->prefix('tenants')->name('tenants.')
     Route::get('/api/staff-members', [TenantsController::class, 'getStaffMembers'])->name('api.staff-members');
 });
 
-
 //for the staff
 Route::middleware(['auth', 'role:staff'])->group(function () {
     Route::get('/dashboard', [StaffController::class, 'index'])->name('staff.dashboard');
-    Route::get('/bill', [StaffController::class, 'bill'])->name('staff.bill');
-    Route::get('/analytics', [StaffController::class, 'analytics'])->name('staff.analytics');
     Route::get('/maintenance', [StaffController::class, 'maintenance'])->name('staff.maintenance');
-    Route::get('/prop-assets', [StaffController::class, 'propAssets'])->name('staff.propAssets');
-    Route::get('/user-management', [StaffController::class, 'userManagement'])->name('staff.userManagement');
-    Route::get('/properties', [StaffController::class, 'properties'])->name('staff.properties');
-    Route::get('/payment', [StaffController::class, 'payment'])->name('staff.payment');
+    Route::post('/maintenance/{id}/update-status', [StaffController::class, 'updateStatus'])->name('staff.maintenance.update-status');
 });
 

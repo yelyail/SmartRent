@@ -84,7 +84,7 @@
                                 <div class="w-6 h-6 flex items-center justify-center">
                                     <i class="fas fa-chart-bar text-sm {{ request()->routeIs('admins.analytics*') ? 'text-white' : 'text-gray-400 group-hover:text-white' }}"></i>
                                 </div>
-                                <span class="font-medium">Analytics</span>
+                                <span class="font-medium">Reports</span>
                                 @if(request()->routeIs('admins.analytics*'))
                                 <div class="ml-auto w-2 h-2 bg-white rounded-full"></div>
                                 @endif
@@ -123,14 +123,6 @@
                         </button>
                         <!-- Dropdown Menu -->
                         <div class="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                            <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                <i class="fas fa-user-edit mr-3 text-xs"></i>
-                                Edit Profile
-                            </a>
-                            <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                <i class="fas fa-cog mr-3 text-xs"></i>
-                                Settings
-                            </a>
                             <div class="border-t border-gray-200 my-1"></div>
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf

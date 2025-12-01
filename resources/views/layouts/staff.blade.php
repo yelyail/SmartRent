@@ -37,49 +37,53 @@
                         </a>
                     </li>
                     <li>
-                        <a href="{{ route('staff.properties') }}" class="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors {{ request()->routeIs('staff.properties*') ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : '' }}">
-                            <i class="fas fa-building w-5"></i>
-                            <span class="{{ request()->routeIs('staff.properties*') ? 'font-medium' : '' }}">Properties</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ route('staff.smartdevices') }}" class="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors {{ request()->routeIs('staff.smartdevices*') ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : '' }}">
-                            <i class="fas fa-mobile-alt w-5"></i>
-                            <span class="{{ request()->routeIs('staff.smartdevices*') ? 'font-medium' : '' }}">Smart Devices</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ route('staff.tenants') }}" class="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors {{ request()->routeIs('staff.tenants*') ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : '' }}">
-                            <i class="fas fa-users w-5"></i>
-                            <span class="{{ request()->routeIs('staff.tenants*') ? 'font-medium' : '' }}">Tenants</span>
-                        </a>
-                    </li>
-                    <li>
                         <a href="{{ route('staff.maintenance') }}" class="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors {{ request()->routeIs('staff.maintenance*') ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : '' }}">
                             <i class="fas fa-wrench w-5"></i>
                             <span class="{{ request()->routeIs('staff.maintenance*') ? 'font-medium' : '' }}">Maintenance</span>
                         </a>
                     </li>
-                    <li>
-                        <a href="{{ route('staff.analytics') }}" class="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors {{ request()->routeIs('staff.analytics*') ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : '' }}">
-                            <i class="fas fa-chart-bar w-5"></i>
-                            <span class="{{ request()->routeIs('staff.analytics*') ? 'font-medium' : '' }}">Analytics</span>
-                        </a>
-                    </li>
                 </ul>
             </nav>
 
-            <!-- Profile -->
-            <div class="p-4 border-t border-gray-200">
+             <!-- Profile Section -->
+            <div class="p-4 border-t border-gray-700">
                 <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                        <i class="fas fa-user text-gray-600"></i>
+                    <div class="relative">
+                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                            <i class="fas fa-user text-white text-sm"></i>
+                        </div>
+                        <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 border-2 border-gray-800 rounded-full"></div>
                     </div>
-                    <div>
-                        <p class="text-sm font-medium text-gray-900">{{ Auth::user()->name ?? 'John Manager' }}</p>
-                        <p class="text-xs text-gray-500">Property Manager</p>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-md font-semibold text-gray-900 truncate capitalize">
+                            @auth
+                                {{ Auth::user()->first_name }} 
+                                @if(Auth::user()->middle_name)
+                                    {{ substr(Auth::user()->middle_name, 0, 1) }}.
+                                @endif
+                                {{ Auth::user()->last_name }}
+                            @else
+                                John Manager
+                            @endauth
+                        </p>
+                        <p class="text-xs text-gray-400 truncate capitalize">{{ Auth::user()->role }}</p>
                     </div>
-                    <i class="fas fa-cog text-gray-400 ml-auto cursor-pointer hover:text-gray-600 transition-colors"></i>
+                    <div class="relative group">
+                        <button class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors duration-200 rounded-lg hover:bg-blue-500">
+                            <i class="fas fa-ellipsis-v text-sm"></i>
+                        </button>
+                        <!-- Dropdown Menu -->
+                        <div class="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                            <div class="border-t border-gray-200 my-1"></div>
+                            <form method="POST" action="{{ route('logout') }}">
+                                @csrf
+                                <button type="submit" class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
+                                    <i class="fas fa-sign-out-alt mr-3 text-xs"></i>
+                                    Logout
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

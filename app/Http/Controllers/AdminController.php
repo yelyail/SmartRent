@@ -22,9 +22,499 @@ use Illuminate\Support\Facades\DB;
 class AdminController extends Controller
 {
     
+
     public function analytics()
     {
-        return view('admins.analytics');
+        $currentMonth = now()->format('Y-m');
+        $previousMonth = now()->subMonth()->format('Y-m');
+        $currentYear = now()->year;
+        
+        // Get all leases for current month - FIXED LOGIC
+        $currentMonthLeases = Leases::where(function($query) use ($currentYear) {
+                $query->whereYear('start_date', '=', $currentYear)
+                    ->whereMonth('start_date', '=', now()->month);
+            })
+            ->orWhere(function($query) use ($currentYear) {
+                $query->whereYear('end_date', '=', $currentYear)
+                    ->whereMonth('end_date', '=', now()->month);
+            })
+            ->get();
+
+        // Get all leases for previous month - FIXED LOGIC
+        $previousMonthLeases = Leases::where(function($query) {
+                $query->whereYear('start_date', '=', now()->subMonth()->year)
+                    ->whereMonth('start_date', '=', now()->subMonth()->month);
+            })
+            ->orWhere(function($query) {
+                $query->whereYear('end_date', '=', now()->subMonth()->year)
+                    ->whereMonth('end_date', '=', now()->subMonth()->month);
+            })
+            ->get();
+
+        // Calculate Monthly Revenue
+        $currentMonthRevenue = Payment::whereYear('payment_date', '=', $currentYear)
+            ->whereMonth('payment_date', '=', now()->month)
+            ->sum('amount_paid');
+
+        $previousMonthRevenue = Payment::whereYear('payment_date', '=', now()->subMonth()->year)
+            ->whereMonth('payment_date', '=', now()->subMonth()->month)
+            ->sum('amount_paid');
+
+        $revenueChangePercentage = $previousMonthRevenue > 0 
+            ? (($currentMonthRevenue - $previousMonthRevenue) / $previousMonthRevenue) * 100 
+            : 100;
+
+        // Calculate Occupancy Rate
+        $totalUnits = PropertyUnits::count();
+        $occupiedUnits = Leases::where('status', 'active')
+            ->where('end_date', '>=', now())
+            ->count();
+
+        $previousMonthOccupied = Leases::where('status', 'active')
+            ->where('end_date', '>=', now()->subMonth())
+            ->where('start_date', '<=', now()->subMonth()->endOfMonth())
+            ->count();
+
+        $avgOccupancy = $totalUnits > 0 ? ($occupiedUnits / $totalUnits) * 100 : 0;
+        $previousMonthOccupancyRate = $totalUnits > 0 ? ($previousMonthOccupied / $totalUnits) * 100 : 0;
+        $occupancyChange = $previousMonthOccupancyRate > 0 
+            ? (($avgOccupancy - $previousMonthOccupancyRate) / $previousMonthOccupancyRate) * 100 
+            : 0;
+
+        // Calculate Tenant Turnover (annual rate)
+        $yearStart = now()->startOfYear();
+        $yearEnd = now()->endOfYear();
+        
+        $totalTenants = Leases::where('status', 'active')->count();
+        $departedTenants = Leases::where('status', 'terminated')
+            ->whereBetween('end_date', [$yearStart, $yearEnd])
+            ->count();
+        
+        $tenantTurnoverRate = $totalTenants > 0 ? ($departedTenants / $totalTenants) * 100 : 0;
+        
+        $previousYearTenants = Leases::where('status', 'active')
+            ->whereYear('start_date', '=', $currentYear - 1)
+            ->count();
+            
+        $previousYearDeparted = Leases::where('status', 'terminated')
+            ->whereYear('end_date', '=', $currentYear - 1)
+            ->count();
+            
+        $previousTurnoverRate = $previousYearTenants > 0 
+            ? ($previousYearDeparted / $previousYearTenants) * 100 
+            : 0;
+            
+        $turnoverChange = $previousTurnoverRate > 0 
+            ? $previousTurnoverRate - $tenantTurnoverRate 
+            : 0;
+
+        // Calculate Net Profit (Revenue - Expenses)
+        $currentMonthExpenses = Billing::whereHas('maintenanceRequest', function($query) use ($currentYear) {
+                $query->whereYear('completed_at', '=', $currentYear)
+                    ->whereMonth('completed_at', '=', now()->month);
+            })
+            ->sum('amount');
+
+        $previousMonthExpenses = Billing::whereHas('maintenanceRequest', function($query) {
+                $query->whereYear('completed_at', '=', now()->subMonth()->year)
+                    ->whereMonth('completed_at', '=', now()->subMonth()->month);
+            })
+            ->sum('amount');
+
+        $netProfit = $currentMonthRevenue - $currentMonthExpenses;
+        $previousMonthProfit = $previousMonthRevenue - $previousMonthExpenses;
+        
+        $profitChangePercentage = $previousMonthProfit > 0 
+            ? (($netProfit - $previousMonthProfit) / $previousMonthProfit) * 100 
+            : 100;
+
+        // Key Metrics Data
+        $metrics = [
+            'monthly_revenue' => [
+                'current' => $currentMonthRevenue,
+                'previous' => $previousMonthRevenue,
+                'change_percentage' => round($revenueChangePercentage, 1),
+                'change_direction' => $revenueChangePercentage >= 0 ? 'up' : 'down'
+            ],
+            'avg_occupancy' => [
+                'current' => round($avgOccupancy, 1),
+                'previous' => round($previousMonthOccupancyRate, 1),
+                'change_percentage' => round($occupancyChange, 1),
+                'change_direction' => $occupancyChange >= 0 ? 'up' : 'down'
+            ],
+            'tenant_turnover' => [
+                'current' => round($tenantTurnoverRate, 1),
+                'previous' => round($previousTurnoverRate, 1),
+                'change_percentage' => round(abs($turnoverChange), 1),
+                'change_direction' => $turnoverChange >= 0 ? 'down' : 'up' // Lower turnover is better
+            ],
+            'net_profit' => [
+                'current' => $netProfit,
+                'previous' => $previousMonthProfit,
+                'change_percentage' => round($profitChangePercentage, 1),
+                'change_direction' => $profitChangePercentage >= 0 ? 'up' : 'down'
+            ]
+        ];
+
+        // Revenue vs Expenses Chart Data (last 6 months)
+        $revenueExpensesData = [
+            'labels' => [],
+            'revenue' => [],
+            'expenses' => []
+        ];
+
+        for ($i = 5; $i >= 0; $i--) {
+            $date = now()->subMonths($i);
+            $monthYear = $date->format('Y-m');
+            $monthName = $date->format('M');
+            
+            $revenueExpensesData['labels'][] = $monthName;
+            
+            // Get revenue for this month
+            $monthRevenue = Payment::whereYear('payment_date', '=', $date->year)
+                ->whereMonth('payment_date', '=', $date->month)
+                ->sum('amount_paid');
+            $revenueExpensesData['revenue'][] = $monthRevenue;
+            
+            // Get expenses for this month
+            $monthExpenses = Billing::whereHas('maintenanceRequest', function($query) use ($date) {
+                    $query->whereYear('completed_at', '=', $date->year)
+                        ->whereMonth('completed_at', '=', $date->month);
+                })
+                ->sum('amount');
+            $revenueExpensesData['expenses'][] = $monthExpenses;
+        }
+
+        // Property Occupancy Data
+        $properties = Property::with(['units', 'leases' => function($query) {
+            $query->where('status', 'active')
+                ->where('end_date', '>=', now());
+        }])->get()->map(function($property) {
+            $totalUnits = $property->units->count();
+            $occupiedUnits = $property->leases->count();
+            $occupancyRate = $totalUnits > 0 ? ($occupiedUnits / $totalUnits) * 100 : 0;
+            
+            return [
+                'name' => $property->property_name,
+                'occupancy_rate' => round($occupancyRate, 1),
+                'change' => 0, // You might want to calculate change over time
+                'change_direction' => 'neutral',
+                'total_units' => $totalUnits,
+                'occupied_units' => $occupiedUnits,
+                'vacant_units' => $totalUnits - $occupiedUnits
+            ];
+        })->toArray();
+
+        // Maintenance Analytics Data
+        $currentMonthRequests = MaintenanceRequest::whereYear('requested_at', '=', $currentYear)
+            ->whereMonth('requested_at', '=', now()->month)
+            ->get();
+
+        $previousMonthRequests = MaintenanceRequest::whereYear('requested_at', '=', now()->subMonth()->year)
+            ->whereMonth('requested_at', '=', now()->subMonth()->month)
+            ->get();
+
+        $currentMonthCompleted = $currentMonthRequests->where('status', 'completed');
+        $previousMonthCompleted = $previousMonthRequests->where('status', 'completed');
+
+        $currentMonthCosts = Billing::whereIn('request_id', $currentMonthCompleted->pluck('request_id'))
+            ->sum('amount');
+
+        $previousMonthCosts = Billing::whereIn('request_id', $previousMonthCompleted->pluck('request_id'))
+            ->sum('amount');
+
+        $avgCostCurrent = $currentMonthCompleted->count() > 0 
+            ? $currentMonthCosts / $currentMonthCompleted->count() 
+            : 0;
+
+        $avgCostPrevious = $previousMonthCompleted->count() > 0 
+            ? $previousMonthCosts / $previousMonthCompleted->count() 
+            : 0;
+
+        // Calculate average resolution time
+        $completedRequests = MaintenanceRequest::where('status', 'completed')
+            ->whereNotNull('completed_at')
+            ->whereNotNull('requested_at')
+            ->whereYear('completed_at', '=', $currentYear)
+            ->whereMonth('completed_at', '=', now()->month)
+            ->get();
+
+        $totalDays = 0;
+        foreach ($completedRequests as $request) {
+            if ($request->completed_at && $request->requested_at) {
+                $totalDays += $request->completed_at->diffInDays($request->requested_at);
+            }
+        }
+        $avgResolutionDays = $completedRequests->count() > 0 
+            ? $totalDays / $completedRequests->count() 
+            : 0;
+
+        $maintenance = [
+            'requests_this_month' => [
+                'current' => $currentMonthRequests->count(),
+                'previous' => $previousMonthRequests->count(),
+                'change' => $currentMonthRequests->count() - $previousMonthRequests->count()
+            ],
+            'average_cost' => [
+                'current' => round($avgCostCurrent, 2),
+                'previous' => round($avgCostPrevious, 2),
+                'change' => round($avgCostCurrent - $avgCostPrevious, 2)
+            ],
+            'total_this_month' => [
+                'current' => $currentMonthCosts,
+                'previous' => $previousMonthCosts,
+                'change' => $currentMonthCosts - $previousMonthCosts
+            ],
+            'avg_resolution_days' => [
+                'current' => round($avgResolutionDays, 1),
+                'previous' => 0, // You'd need to calculate this for previous month
+                'change' => 0
+            ]
+        ];
+
+        // Financial Reports Data
+        $propertyIncome = [];
+        foreach (Property::with(['units.leases.payments' => function($query) use ($currentYear) {
+            $query->whereYear('payment_date', '=', $currentYear)
+                ->whereMonth('payment_date', '=', now()->month);
+        }])->get() as $property) {
+            $totalIncome = 0;
+            $totalUnits = $property->units->count();
+            $occupiedUnitsProp = 0;
+            
+            foreach ($property->units as $unit) {
+                foreach ($unit->leases as $lease) {
+                    $totalIncome += $lease->payments->sum('amount_paid');
+                    if ($lease->status === 'active') {
+                        $occupiedUnitsProp++;
+                    }
+                }
+            }
+            
+            $avgRent = $occupiedUnitsProp > 0 ? $totalIncome / $occupiedUnitsProp : 0;
+            $occupancyRate = $totalUnits > 0 ? ($occupiedUnitsProp / $totalUnits) * 100 : 0;
+            
+            $propertyIncome[] = [   
+                'name' => $property->property_name,
+                'units' => $totalUnits,
+                'occupied' => $occupiedUnitsProp,
+                'rental_income' => $totalIncome,
+                'avg_rent' => round($avgRent, 2),
+                'occupancy_rate' => round($occupancyRate, 1),
+                'status' => $occupancyRate >= 90 ? 'excellent' : ($occupancyRate >= 80 ? 'good' : 'needs_attention')
+            ];
+        }
+
+        // Expense Breakdown - ADDED MORE CATEGORIES
+        $expenseCategories = [
+            'Maintenance & Repairs' => Billing::whereHas('maintenanceRequest', function($query) use ($currentYear) {
+                $query->whereYear('completed_at', '=', $currentYear)
+                    ->whereMonth('completed_at', '=', now()->month);
+            })->sum('amount'),
+            'Utilities' => 0, // You'll need to add logic for utilities
+            'Property Taxes' => 0, // You'll need to add logic for taxes
+            'Insurance' => 0, // You'll need to add logic for insurance
+            'Management Fees' => 0, // You'll need to add logic for management fees
+            'Other Expenses' => 0 // You'll need to add logic for other expenses
+        ];
+
+        $totalExpenses = array_sum($expenseCategories);
+        
+        $expenseBreakdown = [];
+        foreach ($expenseCategories as $category => $amount) {
+            $percentage = $totalExpenses > 0 ? ($amount / $totalExpenses) * 100 : 0;
+            $expenseBreakdown[] = [
+                'category' => $category,
+                'amount' => $amount,
+                'percentage' => round($percentage, 1),
+                'change' => 0 // You'd need to calculate change from previous month
+            ];
+        }
+
+        $financialReport = [
+            'period' => [
+                'start' => now()->startOfMonth()->format('Y-m-d'),
+                'end' => now()->endOfMonth()->format('Y-m-d'),
+                'display' => now()->startOfMonth()->format('F j, Y') . ' - ' . now()->endOfMonth()->format('F j, Y')
+            ],
+            'summary' => [
+                'total_revenue' => $currentMonthRevenue,
+                'total_expenses' => $currentMonthExpenses,
+                'net_profit' => $netProfit,
+                'profit_margin' => $currentMonthRevenue > 0 ? ($netProfit / $currentMonthRevenue) * 100 : 0,
+                'revenue_change' => round($revenueChangePercentage, 1),
+                'expenses_change' => $previousMonthExpenses > 0 
+                    ? (($currentMonthExpenses - $previousMonthExpenses) / $previousMonthExpenses) * 100 
+                    : 100,
+                'profit_change' => round($profitChangePercentage, 1)
+            ],
+            'property_income' => $propertyIncome,
+            'expense_breakdown' => $expenseBreakdown,
+            'chart_data' => [
+                'labels' => array_keys($expenseCategories),
+                'data' => array_values($expenseCategories),
+                'colors' => ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#6366F1']
+            ]
+        ];
+
+        // Occupancy Report Data - MOVED OUT OF THE LOOP
+        $occupancyReport = [
+            'period' => now()->format('F Y'),
+            'overall_occupancy' => round($avgOccupancy, 1),
+            'vacant_units' => $totalUnits - $occupiedUnits,
+            'total_units' => $totalUnits,
+            'properties' => $properties,
+            'trend' => [
+                'monthly' => [], // You'd need to calculate this for each month
+                'labels' => []   // Corresponding month labels
+            ]
+        ];
+
+        // Maintenance Report Data
+        $maintenanceRequestsByType = MaintenanceRequest::selectRaw('priority, count(*) as count')
+            ->whereYear('requested_at', '=', $currentYear)
+            ->whereMonth('requested_at', '=', now()->month)
+            ->groupBy('priority')
+            ->get()
+            ->map(function($item) use ($currentMonthRequests) {
+                return [
+                    'type' => ucfirst($item->priority),
+                    'count' => $item->count,
+                    'percentage' => $currentMonthRequests->count() > 0 
+                        ? ($item->count / $currentMonthRequests->count()) * 100 
+                        : 0
+                ];
+            });
+
+        $maintenanceReport = [
+            'period' => now()->format('F Y'),
+            'total_requests' => $currentMonthRequests->count(),
+            'open_requests' => $currentMonthRequests->where('status', '!=', 'completed')->count(),
+            'completed_requests' => $currentMonthCompleted->count(),
+            'avg_response_time' => 'N/A', // You'd need to track response time
+            'avg_resolution_time' => round($avgResolutionDays, 1) . ' days',
+            'total_cost' => $currentMonthCosts,
+            'requests_by_type' => $maintenanceRequestsByType,
+            'requests_by_priority' => $maintenanceRequestsByType->map(function($item) {
+                $colorMap = [
+                    'urgent' => 'bg-red-100 text-red-800',
+                    'high' => 'bg-orange-100 text-orange-800',
+                    'medium' => 'bg-yellow-100 text-yellow-800',
+                    'low' => 'bg-green-100 text-green-800'
+                ];
+                
+                return [
+                    'priority' => ucfirst($item['type']),
+                    'count' => $item['count'],
+                    'color' => $colorMap[strtolower($item['type'])] ?? 'bg-gray-100 text-gray-800'
+                ];
+            }),
+            'recent_requests' => MaintenanceRequest::with(['unit.property', 'assignedStaff'])
+                ->whereYear('requested_at', '=', $currentYear)
+                ->whereMonth('requested_at', '=', now()->month)
+                ->orderBy('requested_at', 'desc')
+                ->take(5)
+                ->get()
+                ->map(function($request) {
+                    return [
+                        'id' => $request->request_id,
+                        'property' => $request->unit->property->property_name ?? 'N/A',
+                        'unit' => $request->unit->unit_number ?? 'N/A',
+                        'type' => $request->priority,
+                        'description' => $request->description,
+                        'priority' => $request->priority,
+                        'status' => $request->status,
+                        'created_at' => $request->requested_at->format('Y-m-d'),
+                        'completed_at' => $request->completed_at ? $request->completed_at->format('Y-m-d') : null,
+                        'cost' => $request->billing ? $request->billing->amount : 0
+                    ];
+                })
+        ];
+
+        // Tenant Report Data
+        $paymentStatus = Payment::whereYear('payment_date', '=', $currentYear)
+            ->whereMonth('payment_date', '=', now()->month)
+            ->get()
+            ->groupBy(function($payment) {
+                $dueDate = $payment->billing->due_date ?? null;
+                if (!$dueDate) return 'unknown';
+                
+                return $payment->payment_date <= $dueDate ? 'on_time' : 'late';
+            });
+
+        $totalPayments = $paymentStatus->flatten()->count();
+        
+        $tenantReport = [
+            'period' => now()->format('F Y'),
+            'total_tenants' => $occupiedUnits,
+            'new_tenants' => Leases::where('status', 'active')
+                ->whereYear('start_date', '=', $currentYear)
+                ->whereMonth('start_date', '=', now()->month)
+                ->count(),
+            'departed_tenants' => Leases::where('status', 'terminated')
+                ->whereYear('end_date', '=', $currentYear)
+                ->whereMonth('end_date', '=', now()->month)
+                ->count(),
+            'avg_tenancy_duration' => 'N/A', // You'd need to calculate this
+            'payment_status' => [
+                'on_time' => $paymentStatus->get('on_time', collect())->count(),
+                'late' => $paymentStatus->get('late', collect())->count(),
+                'overdue' => 0, // You'd need to define what "overdue" means
+                'percentage_on_time' => $totalPayments > 0 
+                    ? ($paymentStatus->get('on_time', collect())->count() / $totalPayments) * 100 
+                    : 0
+            ]
+        ];
+
+        // Expense Report Data
+        $expensesByProperty = Property::with(['units.maintenanceRequests.billing'])
+            ->get()
+            ->map(function($property) use ($currentYear) {
+                $maintenanceCost = 0;
+                $otherCost = 0;
+                
+                foreach ($property->units as $unit) {
+                    foreach ($unit->maintenanceRequests as $request) {
+                        if ($request->billing && 
+                            $request->completed_at && 
+                            $request->completed_at->year == $currentYear && 
+                            $request->completed_at->month == now()->month) {
+                            $maintenanceCost += $request->billing->amount;
+                        }
+                    }
+                }
+                
+                // Add other expense calculations as needed
+                
+                return [
+                    'property' => $property->property_name,
+                    'maintenance' => $maintenanceCost,
+                    'utilities' => 0, // You'd need to track utilities
+                    'taxes' => 0,     // You'd need to track taxes
+                    'other' => $otherCost,
+                    'total' => $maintenanceCost + $otherCost
+                ];
+            });
+
+        $expenseReport = [
+            'period' => now()->format('F Y'),
+            'total_expenses' => $currentMonthExpenses,
+            'avg_daily_expense' => $currentMonthExpenses > 0 ? $currentMonthExpenses / now()->day : 0,
+            'expenses_by_category' => $expenseBreakdown,
+            'expenses_by_property' => $expensesByProperty
+        ];
+
+        return view('admins.analytics', compact(
+            'metrics',
+            'revenueExpensesData',
+            'properties',
+            'maintenance',
+            'financialReport',
+            'occupancyReport',
+            'maintenanceReport',
+            'tenantReport',
+            'expenseReport'
+        ));
     }
     
      public function maintenance()

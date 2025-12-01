@@ -77,13 +77,17 @@ class Property extends Model
         return $this->hasManyThrough(
             Leases::class, 
             PropertyUnits::class, 
-            'prop_id', // Foreign key on PropertyUnits table (points to Property)
-            'unit_id', // Foreign key on Leases table (points to PropertyUnits)
-            'prop_id', // Local key on Property table
-            'unit_id'  // Local key on PropertyUnits table
+            'prop_id', 
+            'unit_id', 
+            'prop_id', 
+            'unit_id'  
         )->where('leases.status', 'active')
         ->where('leases.start_date', '<=', now())
         ->where('leases.end_date', '>=', now());
+    }
+    public function leases()
+    {
+        return $this->hasMany(Leases::class, 'prop_id', 'prop_id');
     }
     
     // Get current tenant

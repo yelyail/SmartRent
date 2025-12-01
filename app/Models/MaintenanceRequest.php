@@ -53,105 +53,21 @@ class MaintenanceRequest extends Model
     }
 
     /**
-     * Automatically determine priority based on title and description
+     * Scope for in-progress requests
      */
-    public function determinePriority($title, $description)
+    public function scopeInProgress($query)
     {
-        $content = strtolower($title . ' ' . $description);
-        
-        // Emergency keywords - urgent
-        $emergencyKeywords = [
-            'fire', 'flood', 'flooding', 'gas leak', 'carbon monoxide', 'electrical fire',
-            'sparking', 'smoke', 'no heat', 'no water', 'broken window', 'break in',
-            'lock broken', 'door broken', 'security breach', 'sewage', 'overflow',
-            'burst pipe', 'electrical hazard', 'sparking outlet', 'water pouring'
-        ];
-
-        // High priority keywords - urgent but not emergency
-        $highPriorityKeywords = [
-            'leak', 'leaking', 'water damage', 'no ac', 'no heat', 'hot water',
-            'toilet not working', 'clogged', 'overflowing', 'electrical issue',
-            'power outage', 'outlet not working', 'window broken', 'lock not working',
-            'refrigerator not working', 'oven not working', 'fridge broken'
-        ];
-
-        // Medium priority keywords - important but can wait
-        $mediumPriorityKeywords = [
-            'dripping', 'slow drain', 'light not working', 'bulb replacement',
-            'painting', 'carpet cleaning', 'minor repair', 'squeaky door',
-            'loose handle', 'cabinet repair', 'countertop', 'flooring'
-        ];
-
-        // Low priority keywords - cosmetic or minor issues
-        $lowPriorityKeywords = [
-            'touch up', 'cosmetic', 'paint chip', 'small crack', 'minor scratch',
-            'cleaning', 'dust', 'landscaping', 'curb appeal', 'decorative'
-        ];
-
-        // Check for emergency issues first
-        foreach ($emergencyKeywords as $keyword) {
-            if (str_contains($content, $keyword)) {
-                return 'urgent';
-            }
-        }
-
-        // Check for high priority issues
-        foreach ($highPriorityKeywords as $keyword) {
-            if (str_contains($content, $keyword)) {
-                return 'high';
-            }
-        }
-
-        // Check for medium priority issues
-        foreach ($mediumPriorityKeywords as $keyword) {
-            if (str_contains($content, $keyword)) {
-                return 'medium';
-            }
-        }
-
-        // Check for low priority issues
-        foreach ($lowPriorityKeywords as $keyword) {
-            if (str_contains($content, $keyword)) {
-                return 'low';
-            }
-        }
-
-        // Default to medium priority if no keywords match
-        return 'medium';
-    }
-    
-    public function isEmergencyRequest()
-    {
-        $content = strtolower($this->title . ' ' . $this->description);
-        
-        $emergencyKeywords = [
-            'fire', 'flood', 'gas leak', 'carbon monoxide', 'electrical fire',
-            'sparking', 'smoke', 'break in', 'security breach', 'burst pipe'
-        ];
-
-        foreach ($emergencyKeywords as $keyword) {
-            if (str_contains($content, $keyword)) {
-                return true;
-            }
-        }
-
-        return false;
+        return $query->where('status', 'in_progress');
     }
 
     /**
-     * Get priority color for UI
+     * Scope for assigned to specific staff
      */
-    public function getPriorityColorAttribute()
+    public function scopeAssignedTo($query, $staffId)
     {
-        return match($this->priority) {
-            'urgent' => 'red',
-            'high' => 'orange',
-            'medium' => 'yellow',
-            'low' => 'green',
-            default => 'gray'
-        };
+        return $query->where('assigned_staff_id', $staffId);
     }
-    
+
     /**
      * Get priority badge class for UI
      */
@@ -159,18 +75,52 @@ class MaintenanceRequest extends Model
     {
         return match($this->priority) {
             'urgent' => 'bg-red-100 text-red-800',
-            'high' => 'bg-orange-100 text-orange-800',
+            'high' => 'bg-red-100 text-red-800',
             'medium' => 'bg-yellow-100 text-yellow-800',
             'low' => 'bg-green-100 text-green-800',
             default => 'bg-gray-100 text-gray-800'
         };
     }
-    
+
     /**
-     * Check if request has an associated billing
+     * Get status badge class for UI
      */
-    public function getHasBillingAttribute()
+    public function getStatusBadgeClassAttribute()
     {
-        return $this->billing()->exists();
+        return match($this->status) {
+            'pending' => 'bg-orange-100 text-orange-800',
+            'in_progress' => 'bg-blue-100 text-blue-800',
+            'completed' => 'bg-green-100 text-green-800',
+            'cancelled' => 'bg-gray-100 text-gray-800',
+            default => 'bg-gray-100 text-gray-800'
+        };
+    }
+
+    /**
+     * Get human readable status
+     */
+    public function getStatusHumanAttribute()
+    {
+        return match($this->status) {
+            'pending' => 'Pending',
+            'in_progress' => 'In Progress',
+            'completed' => 'Completed',
+            'cancelled' => 'Cancelled',
+            default => ucfirst($this->status)
+        };
+    }
+
+    /**
+     * Get human readable priority
+     */
+    public function getPriorityHumanAttribute()
+    {
+        return match($this->priority) {
+            'urgent' => 'Urgent',
+            'high' => 'High',
+            'medium' => 'Medium',
+            'low' => 'Low',
+            default => ucfirst($this->priority)
+        };
     }
 }
