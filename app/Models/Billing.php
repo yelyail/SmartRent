@@ -36,34 +36,18 @@ class Billing extends Model
     {
         return $this->belongsTo(Leases::class, 'lease_id', 'lease_id');
     }
-
-    /**
-     * Get the maintenance request associated with the billing.
-     */
     public function maintenanceRequest(): BelongsTo
     {
         return $this->belongsTo(MaintenanceRequest::class, 'request_id', 'request_id');
     }
-
-    /**
-     * Get the payments for the billing.
-     */
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class, 'bill_id', 'bill_id');
     }
-
-    /**
-     * Calculate the total paid amount for this billing.
-     */
     public function getTotalPaidAttribute()
     {
         return $this->payments()->sum('amount_paid');
     }
-
-    /**
-     * Calculate the remaining balance for this billing.
-     */
     public function getRemainingBalanceAttribute()
     {
         return $this->amount - $this->total_paid;

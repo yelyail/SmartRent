@@ -32,12 +32,18 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::prefix('admin')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'index'])->name('admins.dashboard');
-        Route::get('/bill', [AdminController::class, 'bill'])->name('admins.bill');
         Route::get('/analytics', [AdminController::class, 'analytics'])->name('admins.analytics');
-        Route::get('/maintenance', [AdminController::class, 'maintenance'])->name('admins.maintenance');
         Route::get('/user-management', [AdminController::class, 'userManagement'])->name('admins.userManagement');
         Route::get('/properties', [AdminController::class, 'properties'])->name('admins.properties');
-        Route::get('/payment', [AdminController::class, 'payment'])->name('admins.payment');
+
+        // maintenance
+        Route::get('/maintenance', [AdminController::class, 'maintenance'])->name('admins.maintenance');
+        Route::post('/maintenance', [AdminController::class, 'store'])->name('admins.maintenance.store');
+        Route::post('/maintenance/{id}/approve', [AdminController::class, 'approveRequest'])->name('admins.maintenance.approve');
+        Route::post('/maintenance/{id}/status', [AdminController::class, 'updateStatus'])->name('admins.maintenance.update-status');
+        Route::get('/maintenance/{id}/details', [AdminController::class, 'getRequestDetails'])->name('admins.maintenance.details');
+        Route::post('/maintenance/{id}/invoice', [AdminController::class, 'createInvoice'])->name('admins.maintenance.create-invoice');
+        Route::post('/billing/{id}/payment', [AdminController::class, 'recordPayment'])->name('admins.billing.record-payment');
 
         // AJAX routes for user management
         Route::get('/users/stats', [AdminController::class, 'getUserStats'])->name('admin.users.stats');
@@ -110,8 +116,6 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         })->name('files.pdf')->middleware(['auth', 'role:admin']);
     });
 });
-
-
 //for the landlord
 Route::middleware(['auth', 'role:landlord'])->prefix('landlord')->name('landlords.')->group(function () {
     // Dashboard & Main Pages
@@ -169,7 +173,9 @@ Route::middleware(['auth', 'role:tenants'])->prefix('tenants')->name('tenants.')
  
     Route::get('/analytics', [TenantsController::class, 'analytics'])->name('analytics'); // reports page
 
-    Route::get('/maintenance', [TenantsController::class, 'maintenance'])->name('maintenance'); // Maintenance page
+    Route::get('/maintenance', [TenantsController::class, 'maintenance'])->name('maintenance');
+    Route::post('/maintenance/payment', [TenantsController::class, 'makePayment'])->name('maintenance.payment');
+    Route::get('/maintenance/{id}/details', [TenantsController::class, 'getRequestDetails'])->name('maintenance.details');
     Route::post('/maintenance-requests', [TenantsController::class, 'store'])->name('maintenance-requests.store'); // Submit maintenance request
 
     Route::get('/properties', [TenantsController::class, 'properties'])->name('properties');    

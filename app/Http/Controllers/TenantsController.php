@@ -76,8 +76,6 @@ use Illuminate\Support\Str;
 
         $today = now();
         $dueDate = \Carbon\Carbon::parse($currentLease->start_date)->addMonth()->startOfDay();
-        
-        // Check if rent is paid for current month (you'll need to implement this logic)
         $isPaid = Payment::where('lease_id', $currentLease->lease_id)
             ->where('transaction_type', 'rent')
             ->whereMonth('payment_date', $today->month)
@@ -196,20 +194,95 @@ use Illuminate\Support\Str;
             ->with('property')
             ->get();
 
-        // Get the current tenant's maintenance requests
+        // Get the current tenant's maintenance requests with billing info
         $maintenanceRequests = MaintenanceRequest::where('user_id', $tenantId)
-            ->with(['unit.property', 'assignedStaff'])
+            ->with(['unit.property', 'assignedStaff', 'billing'])
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Get staff members with their positions
-        $staffMembers = User::where('role', 'staff')
-            ->where('status', 'active')
-            ->select('user_id', 'first_name', 'last_name', 'position')
-            ->orderBy('first_name')
+        // Get all unpaid bills for this tenant
+        $unpaidBills = Billing::whereHas('lease', function($query) use ($tenantId) {
+                $query->where('user_id', $tenantId);
+            })
+            ->where('status', 'pending')
+            ->with(['lease.unit.property', 'maintenanceRequest'])
             ->get();
 
-        return view('tenants.maintenance', compact('userUnits', 'maintenanceRequests', 'staffMembers'));
+        // Get payment methods
+        $paymentMethods = [
+            'bank_transfer' => 'Bank Transfer',
+            'gcash' => 'GCash'
+        ];
+        
+        // Get total outstanding amount
+        $totalOutstanding = $unpaidBills->sum('amount');
+
+        return view('tenants.maintenance', compact(
+            'userUnits',
+            'maintenanceRequests',
+            'unpaidBills',
+            'paymentMethods',
+            'totalOutstanding'
+        ));
+    }
+
+    public function makePayment(Request $request)
+    {
+        $validated = $request->validate([
+            'bill_id' => 'required|exists:billings,bill_id',
+            'payment_method' => 'required|string|in:bank_transfer,gcash', // Keep UI validation
+            'amount_paid' => 'required|numeric|min:0',
+            'reference_number' => 'nullable|string',
+            'payment_date' => 'required|date'
+        ]);
+
+        // Check if bill belongs to the tenant
+        $bill = Billing::with('lease')->findOrFail($validated['bill_id']);
+        
+        if ($bill->lease->user_id != Auth::id()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized payment attempt'
+            ]);
+        }
+
+        // Map UI values to database values
+        $dbPaymentMethod = $validated['payment_method'];
+        if ($validated['payment_method'] === 'gcash') {
+            $dbPaymentMethod = 'e-cash'; // Map GCash to e-cash
+        } elseif ($validated['payment_method'] === 'bank_transfer') {
+            $dbPaymentMethod = 'bank'; // Map bank_transfer to bank
+        }
+
+        // Create payment record
+        $payment = Payment::create([
+            'bill_id' => $bill->bill_id,
+            'lease_id' => $bill->lease_id,
+            'payment_method' => $dbPaymentMethod, // Use database values
+            'amount_paid' => $validated['amount_paid'],
+            'reference_no' => $validated['reference_number'],
+            'payment_date' => $validated['payment_date'],
+            'transaction_type' => 'Maintenance'
+        ]);
+
+        // Update billing status
+        $bill->update([
+            'status' => 'paid'
+        ]);
+
+        // Update related maintenance request if exists
+        if ($bill->maintenanceRequest) {
+            $bill->maintenanceRequest->update([
+                'status' => 'completed',
+                'completed_at' => now()
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment successful!',
+            'payment' => $payment
+        ]);
     }
     public function store(Request $request)
     {

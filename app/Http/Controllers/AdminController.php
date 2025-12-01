@@ -13,6 +13,9 @@ use App\Models\SmartDevice;
 use App\Models\Payment;
 use App\Models\MaintenanceRequest;
 use App\Models\PropertyUnits;
+use App\Models\Leases;
+use App\Models\Billing;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -24,12 +27,169 @@ class AdminController extends Controller
         return view('admins.analytics');
     }
     
-    public function maintenance()
+     public function maintenance()
     {
-        return view('admins.maintenance');
+        // Get all maintenance requests with related data
+        $maintenanceRequests = MaintenanceRequest::with([
+            'user',
+            'unit.property.landlord', 
+            'assignedStaff'
+        ])
+        ->orderBy('created_at', 'desc')
+        ->get();
+
+        // Calculate stats
+        $totalRequests = $maintenanceRequests->count();
+        $pendingRequests = $maintenanceRequests->where('status', 'pending')->count();
+        $inProgressRequests = $maintenanceRequests->where('status', 'in_progress')->count();
+        $highPriorityRequests = $maintenanceRequests->whereIn('priority', ['high', 'urgent'])->count();
+
+        $properties = Property::with('units')->get();
+        $staffUsers = User::whereIn('role', ['staff', 'admin'])->get();
+
+        return view('admins.maintenance', compact(
+            'maintenanceRequests',
+            'totalRequests',
+            'pendingRequests',
+            'inProgressRequests',
+            'highPriorityRequests',
+            'properties',
+            'staffUsers'
+        ));
     }
-    
-    
+
+    public function approveRequest(Request $request, $id)
+    {
+        $maintenanceRequest = MaintenanceRequest::with(['unit.property', 'user'])->findOrFail($id);
+        
+        // Check if request is already approved
+        if ($maintenanceRequest->status === 'in_progress') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Request already in_progress'
+            ]);
+        }
+
+        // Update maintenance request status
+        $maintenanceRequest->update([
+            'status' => 'in_progress',
+            'approved_at' => now(),
+            'approved_by' => Auth::id()
+        ]);
+
+        // Find active lease for the unit
+        $activeLease = Leases::where('unit_id', $maintenanceRequest->unit_id)
+            ->where('status', 'active')
+            ->where('start_date', '<=', now())
+            ->where('end_date', '>=', now())
+            ->first();
+
+        if ($activeLease) {
+            // Create billing for the maintenance request
+            $billing = Billing::create([
+                'lease_id' => $activeLease->lease_id,
+                'request_id' => $maintenanceRequest->request_id,
+                'bill_name' => 'Maintenance: ' . $maintenanceRequest->title,
+                'bill_period' => date('M Y'),
+                'due_date' => Carbon::now()->addDays(7),
+                'late_fee' => $request->input('late_fee', 0),
+                'overdue_amount_percent' => $request->input('overdue_amount_percent', 0), 
+                'amount' => $request->input('cost', 0),
+                'status' => 'pending',
+                'description' => 'Maintenance request charge: ' . $maintenanceRequest->description
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Request approved and billing created',
+                'billing_id' => $billing->bill_id
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Request approved but no active lease found for billing'
+        ]);
+    }
+
+    public function updateStatus(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'status' => 'required|in:pending,approved,in_progress,completed,cancelled',
+            'notes' => 'nullable|string',
+            'assigned_staff_id' => 'nullable|exists:users,user_id',
+            'estimated_cost' => 'nullable|numeric|min:0'
+        ]);
+
+        $maintenanceRequest = MaintenanceRequest::findOrFail($id);
+        
+        $updateData = [
+            'status' => $validated['status'],
+            'notes' => $validated['notes'] ?? $maintenanceRequest->notes
+        ];
+
+        // Add assigned staff if provided
+        if ($validated['assigned_staff_id'] ?? false) {
+            $updateData['assigned_staff_id'] = $validated['assigned_staff_id'];
+            $updateData['assigned_at'] = now();
+        }
+
+        // Add completion date if status is completed
+        if ($validated['status'] === 'completed') {
+            $updateData['completed_at'] = now();
+        }
+
+        $maintenanceRequest->update($updateData);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Status updated successfully',
+            'request' => $maintenanceRequest->load(['user', 'unit.property.landlord', 'assignedStaff'])
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,user_id',
+            'unit_id' => 'required|exists:property_units,unit_id',
+            'title' => 'required|string|max:255',
+            'description' => 'required|string',
+            'priority' => 'required|in:low,medium,high,urgent',
+            'estimated_cost' => 'nullable|numeric|min:0'
+        ]);
+
+        // Auto-determine priority if not provided
+        if (!$validated['priority']) {
+            $validated['priority'] = (new MaintenanceRequest())->determinePriority(
+                $validated['title'],
+                $validated['description']
+            );
+        }
+
+        $maintenanceRequest = MaintenanceRequest::create($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Maintenance request created successfully',
+            'request' => $maintenanceRequest->load(['user', 'unit.property'])
+        ]);
+    }
+
+    public function getRequestDetails($id)
+    {
+        $request = MaintenanceRequest::with([
+            'user',
+            'unit.property.landlord',
+            'assignedStaff',
+            'billing' // This should work now
+        ])->findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'request' => $request
+        ]);
+    }
     public function getProperty($id)
     {
         try {
@@ -147,15 +307,6 @@ class AdminController extends Controller
 
         return view('admins.properties', compact('properties'));
     }
-    
-    public function payment()
-    {
-        return view('admins.payment');
-    }
-
-    /**
-     * Get user statistics for AJAX requests
-     */
     public function getUserStats()
     {
         $stats = [
@@ -172,9 +323,6 @@ class AdminController extends Controller
 
         return response()->json($stats);
     }
-    /**
-     * Get pending KYC documents for AJAX requests
-     */
     public function getPendingKyc()
     {
         $kycDocuments = KycDocument::with(['user'])
@@ -207,27 +355,16 @@ class AdminController extends Controller
     
      public function index()
     {
-        // Total Properties (All properties in system)
         $totalProperties = Property::count();
-        
-        // Active Tenants (users with active leases)
         $activeTenants = User::whereHas('leases', function ($query) {
             $query->where('status', 'active')
                 ->where('start_date', '<=', now())
                 ->where('end_date', '>=', now());
         })->count();
-        
-        // Active Landlords (users who own properties)
         $activeLandlords = User::whereHas('properties')->count();
-        
-        // Total Smart Devices
         $smartDevices = SmartDevice::count();
-        
-        // Monthly Revenue (last 30 days)
         $monthlyRevenue = Payment::where('payment_date', '>=', Carbon::now()->subDays(30))
             ->sum('amount_paid');
-        
-        // Revenue trend (compare last 30 days with previous 30 days)
         $previousRevenue = Payment::whereBetween('payment_date', 
             [Carbon::now()->subDays(60), Carbon::now()->subDays(31)])
             ->sum('amount_paid');
@@ -236,10 +373,7 @@ class AdminController extends Controller
             round((($monthlyRevenue - $previousRevenue) / $previousRevenue) * 100, 1) : 
             ($monthlyRevenue > 0 ? 100 : 0);
         
-        // Property Overview Metrics
         $totalUnits = PropertyUnits::count();
-        
-        // Occupied units (units with active leases)
         $occupiedUnits = PropertyUnits::whereHas('leases', function ($query) {
             $query->where('status', 'active')
                 ->where('start_date', '<=', now())
@@ -468,5 +602,96 @@ class AdminController extends Controller
             
             return $property;
         });
+    }
+    public function createInvoice(Request $request, $id)
+    {
+        $maintenanceRequest = MaintenanceRequest::with(['unit.property', 'user'])->findOrFail($id);
+        
+        // Check if invoice already exists
+        $existingBilling = Billing::where('request_id', $id)->first();
+        if ($existingBilling) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invoice already exists for this request',
+                'billing_id' => $existingBilling->bill_id
+            ]);
+        }
+
+        // Find active lease for the unit
+        $activeLease = Leases::where('unit_id', $maintenanceRequest->unit_id)
+            ->where('status', 'active')
+            ->where('start_date', '<=', now())
+            ->where('end_date', '>=', now())
+            ->first();
+
+        if (!$activeLease) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active lease found for this unit'
+            ]);
+        }
+
+        // Create billing invoice
+        $billing = Billing::create([
+            'lease_id' => $activeLease->lease_id,
+            'request_id' => $maintenanceRequest->request_id,
+            'bill_name' => 'Maintenance Invoice: ' . $maintenanceRequest->title,
+            'bill_period' => date('M Y'),
+            'due_date' => Carbon::now()->addDays(7),
+            'late_fee' => $request->input('late_fee', 0),
+            'overdue_amount_percent' => $request->input('overdue_amount_percent', 0),
+            'amount' => $request->input('amount', 0),
+            'status' => 'pending',
+            'description' => 'Maintenance service: ' . $maintenanceRequest->description,
+            'notes' => $request->input('notes', '')
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Invoice created successfully',
+            'invoice' => $billing
+        ]);
+    }
+
+    public function recordPayment(Request $request, $id)
+    {
+        // $id is billing_id
+        $validated = $request->validate([
+            'payment_method' => 'required|string|in:cash,bank_transfer,credit_card,debit_card,online',
+            'amount_paid' => 'required|numeric|min:0',
+            'reference_number' => 'nullable|string',
+            'payment_date' => 'required|date'
+        ]);
+
+        $billing = Billing::with('maintenanceRequest')->findOrFail($id);
+        
+        // Create payment record
+        $payment = Payment::create([
+            'bill_id' => $billing->bill_id,
+            'lease_id' => $billing->lease_id,
+            'payment_method' => $validated['payment_method'],
+            'amount_paid' => $validated['amount_paid'],
+            'reference_number' => $validated['reference_number'],
+            'payment_date' => $validated['payment_date']
+        ]);
+
+        // Update billing status
+        $billing->update([
+            'status' => 'paid'
+        ]);
+
+        // Update maintenance request status to "completed"
+        if ($billing->maintenanceRequest) {
+            $billing->maintenanceRequest->update([
+                'status' => 'completed',
+                'completed_at' => now()
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment recorded and maintenance marked as completed',
+            'payment' => $payment
+        ]);
     }
 }

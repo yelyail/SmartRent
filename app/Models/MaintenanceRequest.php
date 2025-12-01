@@ -21,7 +21,8 @@ class MaintenanceRequest extends Model
         'approved_at',
         'completed_at'
     ];
-     protected $casts = [
+    
+    protected $casts = [
         'requested_at' => 'datetime',
         'assigned_at' => 'datetime',
         'completed_at' => 'datetime',
@@ -43,6 +44,12 @@ class MaintenanceRequest extends Model
     public function assignedStaff()
     {
         return $this->belongsTo(User::class, 'assigned_staff_id', 'user_id');
+    }
+    
+    // Add this relationship for billing
+    public function billing()
+    {
+        return $this->hasOne(Billing::class, 'request_id', 'request_id');
     }
 
     /**
@@ -112,6 +119,7 @@ class MaintenanceRequest extends Model
         // Default to medium priority if no keywords match
         return 'medium';
     }
+    
     public function isEmergencyRequest()
     {
         $content = strtolower($this->title . ' ' . $this->description);
@@ -143,6 +151,7 @@ class MaintenanceRequest extends Model
             default => 'gray'
         };
     }
+    
     /**
      * Get priority badge class for UI
      */
@@ -155,5 +164,13 @@ class MaintenanceRequest extends Model
             'low' => 'bg-green-100 text-green-800',
             default => 'bg-gray-100 text-gray-800'
         };
+    }
+    
+    /**
+     * Check if request has an associated billing
+     */
+    public function getHasBillingAttribute()
+    {
+        return $this->billing()->exists();
     }
 }
