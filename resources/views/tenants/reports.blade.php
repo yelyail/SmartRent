@@ -622,36 +622,14 @@
             button.disabled = true;
 
             // Build URL with parameters
-            let url = '/tenants/api/payments/export-report-pdf?';
+            let url = '/tenants/payments/export-report-pdf?';
             const params = new URLSearchParams();
             if (dateFrom) params.append('date_from', dateFrom);
             if (dateTo) params.append('date_to', dateTo);
             
-            const response = await fetch(url + params.toString(), {
-                headers: {
-                    'X-CSRF-TOKEN': getCsrfToken(),
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                credentials: 'same-origin'
-            });
+            // Open in new tab for PDF download
+            window.open(url + params.toString(), '_blank');
             
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                
-                const filename = `payment-report-${dateFrom || 'all'}-to-${dateTo || 'all'}.pdf`;
-                a.download = filename;
-                
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-            } else {
-                const error = await response.text();
-                alert('Error generating PDF report: ' + error);
-            }
         } catch (error) {
             console.error('Error exporting PDF:', error);
             alert('Error generating PDF report: ' + error.message);

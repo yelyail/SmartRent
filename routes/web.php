@@ -12,6 +12,7 @@ use App\Http\Controllers\{
     PaymentController,
     StaffController,
     UserManagementController,
+    ReportController,
 };
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Auth\AuthController;
@@ -35,6 +36,13 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         Route::get('/analytics', [AdminController::class, 'analytics'])->name('admins.analytics');
         Route::get('/user-management', [AdminController::class, 'userManagement'])->name('admins.userManagement');
         Route::get('/properties', [AdminController::class, 'properties'])->name('admins.properties');
+        
+        // REPORTS ROUTES - Add this section
+        Route::prefix('reports')->name('admin.reports.')->group(function () {
+            Route::get('/', [ReportController::class, 'index'])->name('index');
+            Route::get('/export/pdf', [ReportController::class, 'exportPDF'])->name('export.pdf');
+        });
+        // END REPORTS ROUTES
 
         // maintenance
         Route::get('/maintenance', [AdminController::class, 'maintenance'])->name('admins.maintenance');
@@ -192,6 +200,9 @@ Route::middleware(['auth', 'role:tenants'])->prefix('tenants')->name('tenants.')
     
     Route::get('/my-leases', [TenantsController::class, 'myLeases'])->name('myLeases');
     Route::get('/leases', [TenantsController::class, 'leases'])->name('leases');
+
+    Route::get('/payments/export-report-pdf', [ReportController::class, 'exportPaymentHistoryPDF'])
+        ->name('tenant.payments.export.pdf');
 
     // Add these API routes inside the tenants group
     Route::get('/api/payments/history', [PaymentController::class, 'getPaymentHistory'])->name('payments.history');
