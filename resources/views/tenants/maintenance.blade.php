@@ -269,7 +269,106 @@
 @push('modals')
 <!-- New Request Modal (keep existing) -->
 <div id="newRequestModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
-    <!-- ... existing new request modal code ... -->
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-wrench text-blue-600 text-lg"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">New Maintenance Request</h2>
+                    <p class="text-sm text-gray-500">Submit a request for property maintenance</p>
+                </div>
+            </div>
+            <button id="closeModalBtn" type="button" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <form id="maintenanceRequestForm" action="{{ route('tenants.maintenance-requests.store') }}" method="POST" class="p-6 space-y-6">
+            @csrf
+            <div>
+                <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
+                    Request Title <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="title" name="title" required 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="e.g., Leaking faucet in bathroom">
+                <p class="text-xs text-gray-500 mt-1">Please be specific about the issue</p>
+            </div>
+
+            <div>
+                <label for="description" class="block text-sm font-medium text-gray-700 mb-2">
+                    Description <span class="text-red-500">*</span>
+                </label>
+                <textarea id="description" name="description" rows="4" required
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Please provide a detailed description of the issue..."></textarea>
+                <p class="text-xs text-gray-500 mt-1">
+                    <i class="fas fa-info-circle text-blue-500"></i>
+                    Priority will be automatically determined based on your description
+                </p>
+            </div>
+
+            <div>
+                <label for="unit_id" class="block text-sm font-medium text-gray-700 mb-2">
+                    Select Unit <span class="text-red-500">*</span>
+                </label>
+                <select id="unit_id" name="unit_id" required 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">Select a unit</option>
+                    @foreach($userUnits as $unit)
+                        <option value="{{ $unit->unit_id }}">
+                            {{ $unit->property->property_name }} - Unit #{{ $unit->unit_num }}
+                        </option>
+                    @endforeach
+                </select>
+                @if($userUnits->isEmpty())
+                    <p class="text-sm text-red-600 mt-2">
+                        You don't have any active leases. Please rent a property first.
+                    </p>
+                @endif
+            </div>
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <i class="fas fa-robot text-blue-600 text-lg mr-3"></i>
+                    <div>
+                        <h4 class="text-sm font-semibold text-blue-900">Automatic Priority Detection</h4>
+                        <p class="text-xs text-blue-700 mt-1">
+                            Our AI will analyze your description to determine the priority level based on keywords like:
+                        </p>
+                        <div class="flex flex-wrap gap-1 mt-2">
+                            <span class="text-xs px-2 py-1 bg-red-100 text-red-800 rounded">Urgent: flood, fire, electricity, gas</span>
+                            <span class="text-xs px-2 py-1 bg-orange-100 text-orange-800 rounded">High: leak, broken, security, lock</span>
+                            <span class="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded">Medium: repair, maintenance, cleaning</span>
+                            <span class="text-xs px-2 py-1 bg-green-100 text-green-800 rounded">Low: cosmetic, paint, decoration</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label for="preferred_date" class="block text-sm font-medium text-gray-700 mb-2">
+                    Preferred Service Date (Optional)
+                </label>
+                <input type="date" id="preferred_date" name="preferred_date" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       min="{{ date('Y-m-d') }}">
+                <p class="text-xs text-gray-500 mt-1">Select when you'd prefer the maintenance to be done</p>
+            </div>
+
+            <div class="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
+                <button id="cancelBtn" type="button" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2" 
+                        @if($userUnits->isEmpty()) disabled @endif>
+                    <i class="fas fa-paper-plane text-sm"></i>
+                    <span>Submit Request</span>
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <!-- Payment Modal -->
@@ -368,6 +467,142 @@
 
 @push('scripts')
 <script>
+    function showDetailsModal(requestId) {
+        fetch(`/tenants/maintenance/${requestId}/details`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    const request = data.request;
+                    let detailsHtml = `
+                        <div class="space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <h4 class="text-sm font-medium text-gray-500">Request Title</h4>
+                                    <p class="text-lg font-semibold text-gray-900">${request.title}</p>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-medium text-gray-500">Priority</h4>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                        ${request.priority === 'high' || request.priority === 'urgent' ? 'bg-red-100 text-red-800' : 
+                                          request.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}">
+                                        ${request.priority.charAt(0).toUpperCase() + request.priority.slice(1)}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-500">Description</h4>
+                                <p class="text-gray-700 mt-1">${request.description}</p>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <h4 class="text-sm font-medium text-gray-500">Unit</h4>
+                                    <p class="text-gray-700">${request.unit?.property?.property_name || 'N/A'}</p>
+                                    <p class="text-sm text-gray-500">Unit ${request.unit?.unit_num || 'N/A'}</p>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-medium text-gray-500">Status</h4>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                        ${request.status === 'pending' ? 'bg-orange-100 text-orange-800' :
+                                          request.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                          request.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                          'bg-gray-100 text-gray-800'}">
+                                        ${request.status.replace('_', ' ').charAt(0).toUpperCase() + request.status.replace('_', ' ').slice(1)}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            ${request.billing ? `
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                <h4 class="text-sm font-medium text-gray-700 mb-3">Billing Information</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <p class="text-xs text-gray-500">Invoice ID</p>
+                                        <p class="text-sm font-medium text-gray-900">${request.billing.bill_id}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-gray-500">Amount</p>
+                                        <p class="text-sm font-bold text-gray-900">₱${parseFloat(request.billing.amount).toFixed(2)}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-gray-500">Status</p>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium 
+                                            ${request.billing.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                                            ${request.billing.status.charAt(0).toUpperCase() + request.billing.status.slice(1)}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-gray-500">Due Date</p>
+                                        <p class="text-sm text-gray-900">${new Date(request.billing.due_date).toLocaleDateString()}</p>
+                                    </div>
+                                </div>
+                                ${request.billing.status === 'pending' ? `
+                                <div class="mt-4 text-center">
+                                    <button onclick="showPaymentModal(${request.billing.bill_id}, ${request.billing.amount})" 
+                                            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                                        Pay Now
+                                    </button>
+                                </div>
+                                ` : ''}
+                            </div>
+                            ` : ''}
+                            
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-500">Timeline</h4>
+                                <div class="mt-3 space-y-3">
+                                    <div class="flex items-start">
+                                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                                            <i class="fas fa-calendar-plus text-blue-600 text-xs"></i>
+                                        </div>
+                                        <div>
+                                            <p class="text-sm font-medium text-gray-900">Request Submitted</p>
+                                            <p class="text-xs text-gray-500">${new Date(request.created_at).toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    ${request.assigned_staff ? `
+                                    <div class="flex items-start">
+                                        <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                                            <i class="fas fa-user-cog text-purple-600 text-xs"></i>
+                                        </div>
+                                        <div>
+                                            <p class="text-sm font-medium text-gray-900">Staff Assigned</p>
+                                            <p class="text-xs text-gray-500">${request.assigned_staff.first_name} ${request.assigned_staff.last_name}</p>
+                                        </div>
+                                    </div>
+                                    ` : ''}
+                                    
+                                    ${request.completed_at ? `
+                                    <div class="flex items-start">
+                                        <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                                            <i class="fas fa-flag-checkered text-green-600 text-xs"></i>
+                                        </div>
+                                        <div>
+                                            <p class="text-sm font-medium text-gray-900">Request Completed</p>
+                                            <p class="text-xs text-gray-500">${new Date(request.completed_at).toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('detailsContent').innerHTML = detailsHtml;
+                    document.getElementById('detailsModal').classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching details:', error);
+                showNotification('Failed to load request details. Please try again.', 'error');
+            });
+    }
     // Modal functionality
     const modal = document.getElementById('newRequestModal');
     const newRequestBtn = document.getElementById('newRequestBtn');
@@ -482,7 +717,7 @@
 
     // Details Modal Functions
     function showDetailsModal(requestId) {
-        fetch(`/tenant/maintenance/${requestId}/details`)
+        fetch(`/tenants/maintenance/${requestId}/details`)
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -648,6 +883,121 @@
     document.getElementById('statusFilter').addEventListener('change', filterRequests);
     document.getElementById('priorityFilter').addEventListener('change', filterRequests);
 
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        
+        // Show loading state
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i><span>Analyzing request...</span>';
+        submitBtn.disabled = true;
+
+        try {
+            const formData = new FormData(form);
+            
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                },
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                // Show success with detected priority
+                let priorityBadge = '';
+                let priorityClass = '';
+                
+                switch(result.auto_priority) {
+                    case 'urgent':
+                        priorityBadge = '<span class="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">URGENT</span>';
+                        priorityClass = 'text-red-600';
+                        break;
+                    case 'high':
+                        priorityBadge = '<span class="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">HIGH</span>';
+                        priorityClass = 'text-red-600';
+                        break;
+                    case 'medium':
+                        priorityBadge = '<span class="ml-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">MEDIUM</span>';
+                        priorityClass = 'text-yellow-600';
+                        break;
+                    case 'low':
+                        priorityBadge = '<span class="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">LOW</span>';
+                        priorityClass = 'text-green-600';
+                        break;
+                }
+                
+                // Show notification with priority info
+                showNotificationWithPriority(
+                    'Request submitted successfully!' + priorityBadge,
+                    'success',
+                    result.auto_priority
+                );
+                
+                closeModal();
+                
+                // Reload page to show new request
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                throw new Error(result.message || 'Submission failed');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification(error.message || 'An error occurred while submitting the request', 'error');
+        } finally {
+            // Reset button state
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    });
+
+    // New notification function that shows priority
+    function showNotificationWithPriority(message, type = 'info', priority = null) {
+        const notification = document.createElement('div');
+        
+        let priorityBadge = '';
+        if (priority) {
+            let badgeClass = '';
+            switch(priority) {
+                case 'urgent':
+                case 'high':
+                    badgeClass = 'bg-red-100 text-red-800';
+                    break;
+                case 'medium':
+                    badgeClass = 'bg-yellow-100 text-yellow-800';
+                    break;
+                case 'low':
+                    badgeClass = 'bg-green-100 text-green-800';
+                    break;
+            }
+            priorityBadge = `<span class="ml-2 px-2 py-1 ${badgeClass} text-xs rounded-full">${priority.toUpperCase()}</span>`;
+        }
+        
+        notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg text-white ${
+            type === 'success' ? 'bg-green-500' : 
+            type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+        }`;
+        notification.innerHTML = `
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'exclamation-triangle' : 'info'}"></i>
+                <span class="flex items-center">
+                    ${message}
+                    ${priorityBadge}
+                </span>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 5000);
+    }
     function filterRequests() {
         const searchTerm = document.getElementById('searchInput').value.toLowerCase();
         const statusFilter = document.getElementById('statusFilter').value;

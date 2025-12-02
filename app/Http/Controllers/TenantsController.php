@@ -25,7 +25,7 @@ use Illuminate\Support\Str;
         
         // Get current active lease
         $currentLease = Leases::where('user_id', $tenantId)
-            ->where('status', 'active')
+            ->where('status', 'activate')
             ->with(['property', 'unit'])
             ->first();
 
@@ -189,7 +189,7 @@ use Illuminate\Support\Str;
         
         $userUnits = PropertyUnits::whereHas('leases', function($query) use ($tenantId) {
                 $query->where('user_id', $tenantId)
-                    ->where('status', 'active');
+                    ->where('status', 'activate'); // Changed from 'active' to 'activate'
             })
             ->with('property')
             ->get();
@@ -284,45 +284,44 @@ use Illuminate\Support\Str;
             'payment' => $payment
         ]);
     }
+    // In TenantsController.php
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'title' => 'required|string|max:150',
+        $request->validate([
+            'title' => 'required|string|max:255',
             'description' => 'required|string',
             'unit_id' => 'required|exists:property_units,unit_id',
-            'assigned_staff_id' => 'nullable|exists:users,user_id',
+            'preferred_date' => 'nullable|date|after_or_equal:today'
         ]);
 
         try {
             $maintenanceRequest = new MaintenanceRequest();
             $autoPriority = $maintenanceRequest->determinePriority(
-                $validated['title'], 
-                $validated['description']
+                $request->title, 
+                $request->description
             );
-
             $maintenanceRequest = MaintenanceRequest::create([
                 'user_id' => Auth::id(),
-                'unit_id' => $validated['unit_id'],
-                'title' => $validated['title'],
-                'description' => $validated['description'],
-                'priority' => $autoPriority,
-                'assigned_staff_id' => $validated['assigned_staff_id'] ?? null,
+                'unit_id' => $request->unit_id,
+                'title' => $request->title,
+                'description' => $request->description,
+                'priority' => $autoPriority, 
                 'status' => 'pending',
-                'requested_at' => now(),
+                'preferred_date' => $request->preferred_date
             ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Maintenance request submitted successfully!',
-                'request_id' => $maintenanceRequest->request_id,
-                'auto_priority' => $autoPriority,
-                'assigned_staff' => $validated['assigned_staff_id'] ? 'Manually assigned' : 'Auto-assigned'
+                'request' => $maintenanceRequest,
+                'auto_priority' => $autoPriority 
             ]);
-
         } catch (\Exception $e) {
+            Log::error('Error submitting maintenance request: ' . $e->getMessage());
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to submit maintenance request: ' . $e->getMessage()
+                'message' => 'Failed to submit maintenance request. Please try again.'
             ], 500);
         }
     }
@@ -344,39 +343,46 @@ use Illuminate\Support\Str;
     // for the smart devices
     public function propAssets()
     {
-        $activeLeases = Leases::where('user_id', Auth::id())
-            ->where('status', 'active')
-            ->with(['property.smartDevices'])
-            ->get();
-
-        $smartDevices = collect();
-        $totalDevices = 0;
-        $onlineDevices = 0;
-        $activeDevices = 0;
-        $lowBatteryDevices = 0;
-
-        foreach ($activeLeases as $lease) {
-            if ($lease->property && $lease->property->smartDevices) {
-                $propertyDevices = $lease->property->smartDevices->map(function ($device) use ($lease) {
-                    $device->property_name = $lease->property->property_name;
-                    $device->property_address = $lease->property->property_address;
-                    return $device;
-                });
-                
-                $smartDevices = $smartDevices->merge($propertyDevices);
-                
-                $totalDevices += $lease->property->smartDevices->count();
-                $onlineDevices += $lease->property->smartDevices->where('connection_status', 'online')->count();
-                $activeDevices += $lease->property->smartDevices->where('power_status', 'on')->count();
-                $lowBatteryDevices += $lease->property->smartDevices->where('battery_level', '<', 20)->count();
-            }
-        }
-
+        $user = Auth::user();
+        $activeLeaseIds = Leases::where('user_id', $user->user_id)
+            ->where('status', 'activate')
+            ->pluck('lease_id');
+        $propertyIds = PropertyUnits::whereIn('unit_id', function($query) use ($activeLeaseIds) {
+            $query->select('unit_id')
+                ->from('leases')
+                ->whereIn('lease_id', $activeLeaseIds);
+        })->pluck('prop_id');
+        
+        $smartDevices = SmartDevice::whereIn('prop_id', $propertyIds)
+            ->where('connection_status', 'online') // Only online devices
+            ->with(['property' => function($query) {
+                $query->select('prop_id', 'property_name');
+            }])
+            ->get()
+            ->map(function($device) {
+                return (object) [
+                    'device_id' => $device->device_id,
+                    'device_name' => $device->device_name,
+                    'device_type' => $device->device_type,
+                    'connection_status' => $device->connection_status,
+                    'power_status' => $device->power_status,
+                    'battery_level' => $device->battery_level,
+                    'model' => $device->model,
+                    'property_name' => $device->property->property_name ?? 'Unknown Property'
+                ];
+            });
+        
+        // Calculate stats based on online devices only
+        $totalDevices = $smartDevices->count();
+        $onlineDevices = $smartDevices->where('connection_status', 'online')->count();
+        $activeDevices = $smartDevices->where('power_status', 'on')->count();
+        $lowBatteryDevices = $smartDevices->where('battery_level', '<', 20)->count();
+        
         return view('tenants.propAssets', compact(
-            'smartDevices', 
-            'totalDevices', 
-            'onlineDevices', 
-            'activeDevices', 
+            'smartDevices',
+            'totalDevices',
+            'onlineDevices',
+            'activeDevices',
             'lowBatteryDevices'
         ));
     }
@@ -464,7 +470,7 @@ use Illuminate\Support\Str;
         // Check if user already has an active or pending lease for this property
         $existingLease = Leases::where('user_id', Auth::id())
             ->where('prop_id', $propertyId)
-            ->whereIn('status', ['active', 'pending', 'approved'])
+            ->whereIn('status', ['activate', 'pending', 'approved'])
             ->first();
 
         if ($existingLease) {
@@ -520,5 +526,28 @@ use Illuminate\Support\Str;
 
         return view('tenants.leases', compact('leases'));
     }
-    
+    public function getRequestDetails($id)
+    {
+        try {
+            $request = MaintenanceRequest::with([
+                'unit.property',
+                'assignedStaff',
+                'billing'
+            ])->where('user_id', Auth::id())
+            ->where('request_id', $id)
+            ->firstOrFail();
+
+            return response()->json([
+                'success' => true,
+                'request' => $request
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching maintenance request details: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load request details.'
+            ], 404);
+        }
+    }
 }

@@ -56,9 +56,9 @@ class PaymentController extends Controller
             // Generate reference number based on payment method
             $referenceNo = $this->generateDepositReferenceNumber($request->payment_method, $request->reference_number);
 
-            // Update lease status to active (no deposit_paid column)
+            // Update lease status to active - ENCLOSE IN QUOTES
             $lease->update([
-                'status' => 'active'
+                'status' => 'activate' 
             ]);
 
             // Create billing record for deposit
@@ -123,7 +123,7 @@ class PaymentController extends Controller
             // Check if lease exists and is active
             $lease = Leases::where('user_id', Auth::id())
                 ->where('lease_id', $leaseId)
-                ->where('status', 'active')
+                ->where('status', 'activate')
                 ->first();
 
             if (!$lease) {

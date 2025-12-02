@@ -121,7 +121,6 @@
             <!-- Modal Content -->
             <form id="addPropertyForm" action="{{ route('landlords.properties.store') }}" method="POST" class="p-6 space-y-6" enctype="multipart/form-data">
                 @csrf
-                
                 <!-- Basic Information -->
                 <div>
                     <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -392,9 +391,26 @@
             <!-- Modal Content will be populated by JavaScript -->
         </div>
     </div>
+    <div class="modal fade" id="editPropertyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Loading...</h5>
+            </div>
+            <div class="modal-body" id="modalPropertyContent">
+                <div class="text-center py-5">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 @endpush
 
 @push('scripts')
+    
     <!-- Include compiled JS files -->
     <script src="{{ asset('js/properties.js') }}"></script>
     <script src="{{ asset('js/unit.js') }}"></script>

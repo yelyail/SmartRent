@@ -139,7 +139,9 @@
                 </div>
                 @endif
 
-                <button class="w-full {{ $device->power_status === 'on' ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100' }} py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 toggle-device" data-device-id="{{ $device->device_id }}">
+                <button class="w-full {{ $device->power_status === 'on' ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100' }} py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 device-toggle" 
+                        data-device-id="{{ $device->device_id }}"
+                        data-current-status="{{ $device->power_status }}">
                     <i class="fas fa-power-off text-sm"></i>
                     <span>Turn {{ $device->power_status === 'on' ? 'Off' : 'On' }}</span>
                 </button>
@@ -161,74 +163,160 @@
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const deviceButtons = document.querySelectorAll('.toggle-device');
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Smart devices page loaded');
+    
+    // Device control functionality
+    const deviceButtons = document.querySelectorAll('.device-toggle');
+    console.log(`Found ${deviceButtons.length} device toggle buttons`);
+    
+    deviceButtons.forEach(button => {
+        console.log('Button data:', {
+            id: button.dataset.deviceId,
+            status: button.dataset.currentStatus
+        });
         
-        deviceButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const deviceId = this.getAttribute('data-device-id');
-                const deviceCard = this.closest('.bg-white');
-                const deviceName = deviceCard.querySelector('h3').textContent;
-                const currentPowerStatus = deviceCard.querySelector('.text-sm.font-medium.capitalize').textContent.trim();
+        button.addEventListener('click', async function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const deviceId = this.dataset.deviceId;
+            const currentStatus = this.dataset.currentStatus;
+            const newStatus = currentStatus === 'on' ? 'off' : 'on';
+            
+            console.log(`Device ${deviceId}: ${currentStatus} -> ${newStatus}`);
+            
+            // Find the status element in the card
+            const deviceCard = this.closest('.bg-white');
+            const statusElement = deviceCard.querySelector('.text-sm.font-medium.capitalize');
+            const deviceName = deviceCard.querySelector('h3').textContent;
+            
+            // Show confirmation
+            const { isConfirmed } = await Swal.fire({
+                title: `Turn ${newStatus.toUpperCase()} ${deviceName}?`,
+                text: `Are you sure you want to turn ${newStatus} this device?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: newStatus === 'on' ? '#10B981' : '#EF4444',
+                confirmButtonText: `Turn ${newStatus}`,
+                cancelButtonText: 'Cancel'
+            });
+            
+            if (!isConfirmed) return;
+            
+            // Store original button state
+            const originalHTML = this.innerHTML;
+            const originalClass = this.className;
+            const originalDisabled = this.disabled;
+            
+            // Show loading
+            this.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i><span>Updating...</span>';
+            this.disabled = true;
+            
+            try {
+                // Send request
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+                const response = await fetch(`/tenant/devices/${deviceId}/status`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    body: JSON.stringify({ power_status: newStatus })
+                });
                 
-                // Show loading state
-                const originalText = this.innerHTML;
-                this.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i><span>Processing...</span>';
-                this.disabled = true;
-
-                // Simulate API call to toggle device
-                setTimeout(() => {
-                    // Toggle device state
-                    if (currentPowerStatus === 'on') {
-                        this.innerHTML = '<i class="fas fa-power-off text-sm"></i><span>Turn On</span>';
-                        this.className = this.className.replace('bg-red-50 text-red-600 hover:bg-red-100', 'bg-green-50 text-green-600 hover:bg-green-100');
-                        
-                        // Update status display
-                        deviceCard.querySelector('.text-sm.font-medium.capitalize').textContent = 'off';
-                        deviceCard.querySelector('.text-sm.font-medium.capitalize').className = 'text-sm font-medium capitalize text-red-600';
-                        
-                        console.log(`Turned off: ${deviceName}`);
-                    } else {
-                        this.innerHTML = '<i class="fas fa-power-off text-sm"></i><span>Turn Off</span>';
-                        this.className = this.className.replace('bg-green-50 text-green-600 hover:bg-green-100', 'bg-red-50 text-red-600 hover:bg-red-100');
-                        
-                        // Update status display
-                        deviceCard.querySelector('.text-sm.font-medium.capitalize').textContent = 'on';
-                        deviceCard.querySelector('.text-sm.font-medium.capitalize').className = 'text-sm font-medium capitalize text-green-600';
-                        
-                        console.log(`Turned on: ${deviceName}`);
+                const data = await response.json();
+                console.log('Response:', data);
+                
+                if (!response.ok || !data.success) {
+                    throw new Error(data?.message || 'Failed to update device');
+                }
+                
+                // Update UI on success
+                if (newStatus === 'off') {
+                    this.innerHTML = '<i class="fas fa-power-off text-sm"></i><span>Turn On</span>';
+                    this.className = 'w-full bg-green-50 text-green-600 hover:bg-green-100 py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 device-toggle';
+                    this.dataset.currentStatus = 'off';
+                    
+                    if (statusElement) {
+                        statusElement.textContent = 'off';
+                        statusElement.className = 'text-sm font-medium text-red-600 capitalize';
                     }
+                } else {
+                    this.innerHTML = '<i class="fas fa-power-off text-sm"></i><span>Turn Off</span>';
+                    this.className = 'w-full bg-red-50 text-red-600 hover:bg-red-100 py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 device-toggle';
+                    this.dataset.currentStatus = 'on';
                     
-                    this.disabled = false;
-                    
-                    fetch(`/tenants/smart-devices/${deviceId}/toggle`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            // Update UI based on response
-                        } else {
-                            // Revert changes if failed
-                            this.innerHTML = originalText;
-                        }
-                        this.disabled = false;
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        this.innerHTML = originalText;
-                        this.disabled = false;
-                    });
-                    */
-                    
-                }, 1000);
+                    if (statusElement) {
+                        statusElement.textContent = 'on';
+                        statusElement.className = 'text-sm font-medium text-green-600 capitalize';
+                    }
+                }
+                
+                // Update stats counters (optional)
+                updateStatsCounter(newStatus);
+                
+                // Show success
+                Swal.fire({
+                    title: 'Success!',
+                    text: data.message || 'Device status updated',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+                
+            } catch (error) {
+                console.error('Error:', error);
+                
+                // Revert button to original state
+                this.innerHTML = originalHTML;
+                this.className = originalClass;
+                this.disabled = originalDisabled;
+                
+                // Show error
+                Swal.fire({
+                    title: 'Error!',
+                    text: error.message || 'Failed to update device',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            }
+        });
+    });
+    
+    // Function to update stats counters
+    function updateStatsCounter(newStatus) {
+        const activeCounter = document.querySelector('.text-3xl.font-bold.text-gray-900:nth-of-type(3)');
+        if (!activeCounter) return;
+        
+        let currentCount = parseInt(activeCounter.textContent);
+        
+        if (newStatus === 'on') {
+            currentCount += 1;
+        } else {
+            currentCount = Math.max(0, currentCount - 1);
+        }
+        
+        activeCounter.textContent = currentCount;
+    }
+    
+    // Settings button handler
+    document.querySelectorAll('button.text-gray-400').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const deviceCard = this.closest('.bg-white');
+            const deviceName = deviceCard.querySelector('h3').textContent;
+            
+            Swal.fire({
+                title: 'Device Settings',
+                text: `Settings for ${deviceName}`,
+                icon: 'info',
+                confirmButtonText: 'OK'
             });
         });
     });
+});
 </script>
 @endpush

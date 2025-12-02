@@ -186,7 +186,7 @@ class AdminController extends Controller
         }
 
         // Property Occupancy Data
-        $properties = Property::with(['units', 'leases' => function($query) {
+         $properties = Property::with(['units', 'leases' => function($query) {
             $query->where('status', 'active')
                 ->where('end_date', '>=', now());
         }])->get()->map(function($property) {
@@ -197,13 +197,13 @@ class AdminController extends Controller
             return [
                 'name' => $property->property_name,
                 'occupancy_rate' => round($occupancyRate, 1),
-                'change' => 0, // You might want to calculate change over time
+                'change' => 0,
                 'change_direction' => 'neutral',
                 'total_units' => $totalUnits,
                 'occupied_units' => $occupiedUnits,
                 'vacant_units' => $totalUnits - $occupiedUnits
             ];
-        })->toArray();
+        }); 
 
         // Maintenance Analytics Data
         $currentMonthRequests = MaintenanceRequest::whereYear('requested_at', '=', $currentYear)
@@ -358,15 +358,15 @@ class AdminController extends Controller
         ];
 
         // Occupancy Report Data - MOVED OUT OF THE LOOP
-        $occupancyReport = [
+         $occupancyReport = [
             'period' => now()->format('F Y'),
             'overall_occupancy' => round($avgOccupancy, 1),
             'vacant_units' => $totalUnits - $occupiedUnits,
             'total_units' => $totalUnits,
-            'properties' => $properties,
+            'properties' => $properties, // Already a collection of arrays
             'trend' => [
-                'monthly' => [], // You'd need to calculate this for each month
-                'labels' => []   // Corresponding month labels
+                'monthly' => [],
+                'labels' => []
             ]
         ];
 
@@ -504,10 +504,10 @@ class AdminController extends Controller
             'expenses_by_property' => $expensesByProperty
         ];
 
-        return view('admins.analytics', compact(
+         return view('admins.analytics', compact(
             'metrics',
             'revenueExpensesData',
-            'properties',
+            'properties', 
             'maintenance',
             'financialReport',
             'occupancyReport',
@@ -943,13 +943,13 @@ class AdminController extends Controller
                     'iconColor' => 'yellow',
                     'title' => $request->title,
                     'description' => $request->unit ? 
-                        $request->unit->property->property_name . ' - Unit ' . $request->unit->unit_num : 
+                        $request->unit->property->property_name . ' - Unit ' . ($request->unit->unit_number ?? $request->unit->unit_num ?? 'N/A') : 
                         'Unknown Unit',
                     'time' => $request->created_at->diffForHumans(),
                     'priority' => $request->priority
                 ];
             });
-        
+
         // Get recent payments
         $recentPayments = Payment::with(['lease.unit.property', 'lease.user'])
             ->orderBy('payment_date', 'desc')
@@ -961,14 +961,14 @@ class AdminController extends Controller
                     'icon' => 'check-circle',
                     'iconColor' => 'green',
                     'title' => 'Rent Payment Received',
-                    'description' => $payment->lease->user->first_name . ' ' . 
-                                   $payment->lease->user->last_name . ' - ' . 
-                                   $payment->lease->unit->property->property_name,
+                    'description' => ($payment->lease->user->first_name ?? '') . ' ' . 
+                                ($payment->lease->user->last_name ?? '') . ' - ' . 
+                                ($payment->lease->unit->property->property_name ?? 'Unknown Property'),
                     'time' => $payment->payment_date->diffForHumans(),
                     'amount' => $payment->amount_paid
                 ];
             });
-        
+
         // Get recent user registrations - FIXED
         $recentUsers = User::whereIn('role', ['tenant', 'landlord'])
             ->orderBy('created_at', 'desc')
@@ -1000,13 +1000,29 @@ class AdminController extends Controller
                     'role' => $roleString
                 ];
             });
+        $allActivities = collect();
         
-        // Merge and sort all activities by time
-        $activities = $maintenanceRequests->merge($recentPayments)->merge($recentUsers)
-            ->sortByDesc('time')
-            ->take(5);
+        foreach ($maintenanceRequests as $item) {
+            $allActivities->push($item);
+        }
         
-        return $activities;
+        foreach ($recentPayments as $item) {
+            $allActivities->push($item);
+        }
+        
+        foreach ($recentUsers as $item) {
+            $allActivities->push($item);
+        }
+        
+        // Sort by time (you'll need to convert time to a sortable format)
+        $sortedActivities = $allActivities->sortByDesc(function($item) {
+            if (isset($item['time'])) {
+                return time(); 
+            }
+            return 0;
+        })->take(5);
+
+        return $sortedActivities;
     }
     
     private function getUserGrowthData()

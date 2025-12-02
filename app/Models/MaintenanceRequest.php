@@ -123,4 +123,65 @@ class MaintenanceRequest extends Model
             default => ucfirst($this->priority)
         };
     }
+     public function determinePriority($title, $description)
+    {
+        $text = strtolower($title . ' ' . $description);
+        
+        // Urgent keywords (immediate danger)
+        $urgentKeywords = [
+            'flood', 'fire', 'electrical fire', 'gas leak', 'carbon monoxide',
+            'no heat', 'no hot water', 'flooding', 'spark', 'smoke',
+            'electrocution', 'broken window', 'door broken'
+        ];
+        
+        // High priority keywords (serious issues)
+        $highKeywords = [
+            'leak', 'water leak', 'pipe burst', 'no electricity', 'power outage',
+            'broken lock', 'security', 'break in', 'theft', 'flooded',
+            'mold', 'sewage', 'toilet overflow', 'clogged toilet', 'no water',
+            'refrigerator', 'oven', 'stove', 'heater', 'air conditioning',
+            'ac broken', 'heat broken', 'security system'
+        ];
+        
+        // Medium priority keywords (needs attention)
+        $mediumKeywords = [
+            'repair', 'broken', 'damaged', 'cracked', 'loose', 'not working',
+            'dripping', 'slow drain', 'noisy', 'squeaky', 'stuck', 'jammed',
+            'peeling', 'stain', 'dirty', 'clean', 'maintenance', 'service'
+        ];
+        
+        // Low priority keywords (cosmetic/minor)
+        $lowKeywords = [
+            'paint', 'touch up', 'decorate', 'cosmetic', 'aesthetic',
+            'small crack', 'minor', 'light bulb', 'bulb', 'caulk',
+            'weather stripping', 'shelf', 'blind', 'curtain'
+        ];
+        
+        // Check for urgent keywords first
+        foreach ($urgentKeywords as $keyword) {
+            if (strpos($text, $keyword) !== false) {
+                return 'urgent';
+            }
+        }
+        
+        // Check for high priority keywords
+        foreach ($highKeywords as $keyword) {
+            if (strpos($text, $keyword) !== false) {
+                return 'high';
+            }
+        }
+        
+        // Check for medium priority keywords
+        foreach ($mediumKeywords as $keyword) {
+            if (strpos($text, $keyword) !== false) {
+                return 'medium';
+            }
+        }
+        foreach ($lowKeywords as $keyword) {
+            if (strpos($text, $keyword) !== false) {
+                return 'low';
+            }
+        }
+        return 'medium';
+    }
 }

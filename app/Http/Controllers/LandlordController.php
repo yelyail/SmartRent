@@ -374,7 +374,6 @@ class LandlordController extends Controller
 
     public function propAssets()
     {
-        // Get all smart devices belonging to the landlord's properties
         $smartDevices = SmartDevice::with(['property'])
             ->whereHas('property', function($query) {
                 $query->where('user_id', Auth::id());
@@ -397,38 +396,41 @@ class LandlordController extends Controller
         return view('landlords.propAssets', compact('smartDevices', 'stats'));
     }
    // Add this to LandlordController
-    public function updateDeviceStatus($id, Request $request)
+    // In LandlordController.php
+    public function updateDeviceStatus(Request $request, $id)
     {
         try {
             $device = SmartDevice::findOrFail($id);
             
-            // Verify the device belongs to the landlord
+            // Check if device belongs to landlord's property
             if ($device->property->user_id !== Auth::id()) {
                 return response()->json([
-                    'success' => false, 
-                    'message' => 'Unauthorized access to device'
+                    'success' => false,
+                    'message' => 'Unauthorized access to this device'
                 ], 403);
             }
-
-            $request->validate([
-                'power_status' => 'required|in:on,off'
-            ]);
-
-            $device->update([
-                'power_status' => $request->power_status
-            ]);
-
+            if ($request->has('power_status')) {
+                $device->power_status = $request->power_status;
+            }
+            
+            if ($request->has('connection_status')) {
+                $device->connection_status = $request->connection_status;
+            }
+            
+            $device->save();
+            
             return response()->json([
-                'success' => true, 
+                'success' => true,
                 'message' => 'Device status updated successfully',
-                'power_status' => $device->power_status
+                'device' => $device
             ]);
-
+            
         } catch (\Exception $e) {
             Log::error('Error updating device status: ' . $e->getMessage());
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Error updating device status: ' . $e->getMessage()
+                'message' => 'Failed to update device status'
             ], 500);
         }
     }
