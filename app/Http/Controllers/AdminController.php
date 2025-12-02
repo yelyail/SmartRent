@@ -21,8 +21,6 @@ use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller
 {
-    
-
     public function analytics()
     {
         $currentMonth = now()->format('Y-m');
@@ -517,7 +515,7 @@ class AdminController extends Controller
         ));
     }
     
-     public function maintenance()
+    public function maintenance()
     {
         // Get all maintenance requests with related data
         $maintenanceRequests = MaintenanceRequest::with([
@@ -535,7 +533,7 @@ class AdminController extends Controller
         $highPriorityRequests = $maintenanceRequests->whereIn('priority', ['high', 'urgent'])->count();
 
         $properties = Property::with('units')->get();
-        $staffUsers = User::whereIn('role', ['staff', 'admin'])->get();
+        $staffUsers = User::whereIn('role', ['staff'])->get();
 
         return view('admins.maintenance', compact(
             'maintenanceRequests',
@@ -550,6 +548,12 @@ class AdminController extends Controller
 
     public function approveRequest(Request $request, $id)
     {
+        $validated = $request->validate([
+            'cost' => 'required|numeric|min:0',
+            'due_date' => 'required|date',
+            'assigned_staff_id' => 'nullable|exists:users,user_id'
+        ]);
+
         $maintenanceRequest = MaintenanceRequest::with(['unit.property', 'user'])->findOrFail($id);
         
         // Check if request is already approved
@@ -559,17 +563,22 @@ class AdminController extends Controller
                 'message' => 'Request already in_progress'
             ]);
         }
-
-        // Update maintenance request status
-        $maintenanceRequest->update([
+        $updateData = [
             'status' => 'in_progress',
             'approved_at' => now(),
-            'approved_by' => Auth::id()
-        ]);
+            'approved_by' => Auth::id(),
+            'estimated_cost' => $validated['cost']
+        ];
 
-        // Find active lease for the unit
+        // Add assigned staff if provided
+        if (!empty($validated['assigned_staff_id'])) {
+            $updateData['assigned_staff_id'] = $validated['assigned_staff_id'];
+            $updateData['assigned_at'] = now();
+        }
+        $maintenanceRequest->update($updateData);
+
         $activeLease = Leases::where('unit_id', $maintenanceRequest->unit_id)
-            ->where('status', 'active')
+            ->where('status', 'activate')
             ->where('start_date', '<=', now())
             ->where('end_date', '>=', now())
             ->first();
@@ -581,10 +590,10 @@ class AdminController extends Controller
                 'request_id' => $maintenanceRequest->request_id,
                 'bill_name' => 'Maintenance: ' . $maintenanceRequest->title,
                 'bill_period' => date('M Y'),
-                'due_date' => Carbon::now()->addDays(7),
-                'late_fee' => $request->input('late_fee', 0),
-                'overdue_amount_percent' => $request->input('overdue_amount_percent', 0), 
-                'amount' => $request->input('cost', 0),
+                'due_date' => $validated['due_date'],
+                'late_fee' => 0,
+                'overdue_amount_percent' => 0, 
+                'amount' => $validated['cost'],
                 'status' => 'pending',
                 'description' => 'Maintenance request charge: ' . $maintenanceRequest->description
             ]);
@@ -592,13 +601,15 @@ class AdminController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Request approved and billing created',
-                'billing_id' => $billing->bill_id
+                'billing_id' => $billing->bill_id,
+                'staff_assigned' => !empty($validated['assigned_staff_id'])
             ]);
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Request approved but no active lease found for billing'
+            'message' => 'Request approved but no active lease found for billing',
+            'staff_assigned' => !empty($validated['assigned_staff_id'])
         ]);
     }
 

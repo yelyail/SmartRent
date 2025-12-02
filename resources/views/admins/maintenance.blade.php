@@ -3,14 +3,6 @@
 @section('title', 'Maintenance - SmartRent')
 @section('page-title', 'Maintenance')
 @section('page-description', 'Track and manage maintenance requests across all properties.')
-
-@section('header-actions')
-    <button id="newRequestBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center space-x-2">
-        <i class="fas fa-plus text-sm"></i>
-        <span>New Request</span>
-    </button>
-@endsection
-
 @section('content')
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -434,27 +426,61 @@
                 @csrf
                 <input type="hidden" id="approveRequestId" name="request_id">
                 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Maintenance Cost
-                    </label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₱</span>
-                        <input type="number" id="cost" name="cost" min="0" step="0.01" required
-                               class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                               placeholder="0.00">
+                <div class="space-y-4">
+                    <!-- Staff Assignment -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Assign to Staff
+                        </label>
+                        <select id="assigned_staff_id" name="assigned_staff_id" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Select Staff Member</option>
+                            @foreach($staffUsers as $staff)
+                                <option value="{{ $staff->user_id }}">
+                                    {{ $staff->first_name }} {{ $staff->last_name }}
+                                    @if($staff->role == 'staff')
+                                        (Staff)
+                                    @endif
+                                </option>
+                            @endforeach
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Optional: Assign this request to a staff member</p>
                     </div>
-                    <p class="text-xs text-gray-500 mt-1">This amount will be added to the tenant's billing</p>
+                    
+                    <!-- Maintenance Cost -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Maintenance Cost <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₱</span>
+                            <input type="number" id="cost" name="cost" min="0" step="0.01" required
+                                   class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   placeholder="0.00">
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">This amount will be added to the tenant's billing</p>
+                    </div>
+                    
+                    <!-- Due Date -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Due Date <span class="text-red-500">*</span>
+                        </label>
+                        <input type="date" id="due_date" name="due_date" required
+                               value="{{ \Carbon\Carbon::now()->addDays(7)->format('Y-m-d') }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
                 </div>
                 
-                <div class="flex justify-end space-x-3">
+                <div class="flex justify-end space-x-3 mt-6">
                     <button type="button" onclick="closeApproveModal()" 
                             class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
                         Cancel
                     </button>
                     <button type="submit" 
-                            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                        Approve & Create Billing
+                            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center space-x-2">
+                        <i class="fas fa-check-circle text-sm"></i>
+                        <span>Approve & Create Billing</span>
                     </button>
                 </div>
             </form>
