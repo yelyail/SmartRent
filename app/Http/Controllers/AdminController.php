@@ -23,13 +23,10 @@ class AdminController extends Controller
 {
     public function analytics()
     {
-        // Get total revenue
         $totalRevenue = Billing::where('status', 'paid')->sum('amount');
         
-        // Get total properties
         $totalProperties = Property::count();
         
-        // Calculate occupancy rate
         $totalUnits = PropertyUnits::count();
         $occupiedUnits = Leases::where('status', 'active')->count();
         $occupancyRate = $totalUnits > 0 ? ($occupiedUnits / $totalUnits) * 100 : 0;

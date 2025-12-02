@@ -781,12 +781,9 @@ class LandlordController extends Controller
     
     private function getRecentActivities($user)
     {
-        $activities = collect();
-        
-        // Get recent maintenance requests
         $maintenanceRequests = MaintenanceRequest::with(['unit.property', 'user'])
             ->whereHas('unit.property', function ($query) use ($user) {
-                $query->where('user_id', $user->user_id);
+                $query->where('user_id', $user->user_id); // Make sure $user->user_id exists
             })
             ->orderBy('created_at', 'desc')
             ->limit(3)
@@ -799,7 +796,8 @@ class LandlordController extends Controller
                     'title' => $request->title,
                     'description' => $request->unit ? $request->unit->property->property_name . ' - Unit ' . $request->unit->unit_num : 'Unknown Unit',
                     'time' => $request->created_at->diffForHumans(),
-                    'priority' => $request->priority
+                    'priority' => $request->priority,
+                    'timestamp' => $request->created_at 
                 ];
             });
         
@@ -818,9 +816,10 @@ class LandlordController extends Controller
                     'iconColor' => 'green',
                     'title' => 'Rent Payment Received',
                     'description' => $payment->lease->user->first_name . ' ' . $payment->lease->user->last_name . ' - ' . 
-                                   $payment->lease->unit->property->property_name,
+                                $payment->lease->unit->property->property_name,
                     'time' => $payment->payment_date->diffForHumans(),
-                    'amount' => $payment->amount_paid
+                    'amount' => $payment->amount_paid,
+                    'timestamp' => $payment->payment_date // Add for sorting
                 ];
             });
         
@@ -841,14 +840,18 @@ class LandlordController extends Controller
                     'title' => 'Smart Device Offline',
                     'description' => $device->property->property_name . ' - ' . $device->device_name,
                     'time' => $device->updated_at->diffForHumans(),
-                    'device_type' => $device->device_type
+                    'device_type' => $device->device_type,
+                    'timestamp' => $device->updated_at // Add for sorting
                 ];
             });
         
-        // Merge and sort all activities by time
+        // Merge and sort all activities by timestamp
         $activities = $maintenanceRequests->merge($recentPayments)->merge($deviceAlerts)
-            ->sortByDesc('time')
-            ->take(4);
+            ->sortByDesc(function ($item) {
+                return $item['timestamp'];
+            })
+            ->take(4)
+            ->values(); // Reset keys
         
         return $activities;
     }
