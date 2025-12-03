@@ -77,7 +77,11 @@
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
         ],
         "post-install-cmd": [
-            "php artisan storage:link"
+            "php artisan storage:link",
+             "php artisan key:generate --force",
+            "php artisan storage:link || true",
+            "php artisan config:cache",
+            "php artisan route:cache"
         ]
     },
     "extra": {
@@ -94,6 +98,7 @@
             "php-http/discovery": true
         }
     },
+    
     "minimum-stability": "stable",
     "prefer-stable": true
 }
