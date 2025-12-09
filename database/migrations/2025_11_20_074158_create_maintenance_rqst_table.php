@@ -30,7 +30,6 @@ return new class extends Migration
             $table->unsignedBigInteger('assigned_staff_id')->nullable();
 
             // Date tracking
-            $table->dateTime('requested_at')->nullable();
             $table->dateTime('approved_at')->nullable();
             $table->dateTime('completed_at')->nullable();
 

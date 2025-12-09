@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\MaintenanceRequest;
 use Illuminate\Support\Facades\Auth;
+
 class StaffController extends Controller
 {
     public function index()
@@ -115,7 +116,6 @@ class StaffController extends Controller
             ->take(3);
     }
 
-
     private function getUpcomingTasks($user)
     {
         return MaintenanceRequest::with(['unit.property', 'user'])
@@ -180,6 +180,7 @@ class StaffController extends Controller
             return 'yellow';
         }
     }
+
     public function maintenance()
     {
         // Get the logged-in user
@@ -190,14 +191,22 @@ class StaffController extends Controller
                 'user',
                 'assignedStaff', 
             ])
-            ->where('status', 'in_progress')
             ->where('assigned_staff_id', $user->user_id)
+            ->orderByRaw("
+                CASE 
+                    WHEN status = 'in_progress' THEN 1
+                    WHEN status = 'pending' THEN 2
+                    WHEN status = 'completed' THEN 3
+                    WHEN status = 'cancelled' THEN 4
+                    ELSE 5
+                END
+            ")
             ->orderByRaw("FIELD(priority, 'urgent', 'high', 'medium', 'low')")
-            ->orderBy('requested_at', 'desc')
+            ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($request) {
-                // Calculate days open
-                $request->days_open = now()->diffInDays($request->requested_at);
+                // Calculate days open (always calculate it)
+                $request->days_open = $request->requested_at ? now()->diffInDays($request->requested_at) : 0;
                 $request->property_name = optional(optional($request->unit)->property)->property_name ?? 'Unknown Property';
                 $request->unit_number = optional($request->unit)->unit_num ?? 'N/A';
                 
@@ -207,15 +216,23 @@ class StaffController extends Controller
                 // Get tenant name (from user relationship)
                 $request->tenant_name = optional($request->user)->first_name . ' ' . optional($request->user)->last_name;
                 
+                // Get completion date if exists - safely handle null
+                $request->completion_date = $request->completed_at ? $request->completed_at->format('M d, Y') : null;
+                
                 return $request;
             });
         
         // Calculate statistics
         $stats = [
             'total_tasks' => $maintenanceRequests->count(),
+            'in_progress' => $maintenanceRequests->where('status', 'in_progress')->count(),
+            'completed' => $maintenanceRequests->where('status', 'completed')->count(),
+            'pending' => $maintenanceRequests->where('status', 'pending')->count(),
+            'cancelled' => $maintenanceRequests->where('status', 'cancelled')->count(),
             'high_priority' => $maintenanceRequests->whereIn('priority', ['urgent', 'high'])->count(),
+            'urgent' => $maintenanceRequests->where('priority', 'urgent')->count(),
             'total_cost' => 0,
-            'avg_days_open' => $maintenanceRequests->avg('days_open') ?? 0
+            'avg_days_open' => $maintenanceRequests->where('status', '!=', 'completed')->avg('days_open') ?? 0
         ];
         
         return view('staff.maintenance', [
@@ -246,9 +263,12 @@ class StaffController extends Controller
             $maintenanceRequest->completed_at = now();
         }
         
-        $maintenanceRequest->save();
-        if ($request->has('completion_notes') && !empty($request->completion_notes)) {
+        // If moving from completed to another status, clear completed_at
+        if ($maintenanceRequest->getOriginal('status') == 'completed' && $validated['status'] != 'completed') {
+            $maintenanceRequest->completed_at = null;
         }
+        
+        $maintenanceRequest->save();
         
         return back()->with('success', 'Maintenance request status updated successfully.');
     }
